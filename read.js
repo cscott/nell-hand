@@ -27,58 +27,83 @@ p("<body><h1>Character Visualization</h1>");
 //p('Version', data.version);
 p("<p>" + data.set.length + "samples</p>");
 
-var canvas_id = 0;
-function draw_letter(data_set) {
-    var id = "c" + (canvas_id++);
-    p("<canvas id=\""+id+"\"></canvas>");
-    p("<script type=\"text/javascript\">");
-    p("(function() { ");
-    p("  var canvas = document.getElementById(\""+id+"\");");
-    p("  canvas.width = canvas.height = "+CANVAS_RESOLUTION*RETINA_FACTOR+";");
-    p("  var ctx = canvas.getContext(\"2d\");");
-    // find bounding box
-    var min_x, min_y, max_x, max_y; var first=true;
-    // Ugh: this should be a one-liner...
-    data_set.strokes.forEach(function(stroke) {
-        stroke.forEach(function(point) {
-            if (first) {
-                min_x = max_x = point[0];
-                min_y = max_y = point[1];
-                first = false;
-            } else {
-                min_x = Math.min(min_x, point[0]);
-                max_x = Math.max(max_x, point[0]);
-                min_y = Math.min(min_y, point[1]);
-                max_y = Math.max(max_y, point[1]);
-            }
-        });
+function normalize(data_set) {
+    function mkpt(p) { return { x:p[0], y:p[1] }; }
+
+    // remove dups
+    data_set.strokes = data_set.strokes.map(function(stroke) {
+        stroke = stroke.map(mkpt);
+        var nstrokes = [stroke[0]];
+        for (var i=1; i<stroke.length; i++) {
+            if (stroke[i].x == stroke[i-1].x &&
+                stroke[i].y == stroke[i-1].y)
+                continue;
+            nstrokes.push(stroke[i]);
+        }
+        return nstrokes;
     });
+
+    // find bounding box
+    // Ugh: this should be a one-liner...
+    function minpt(pta, ptb) {
+        return {x:Math.min(pta.x, ptb.x), y:Math.min(pta.y, ptb.y)};
+    }
+    function maxpt(pta, ptb) {
+        return {x:Math.max(pta.x, ptb.x), y:Math.max(pta.y, ptb.y)};
+    }
+    var max = data_set.strokes.map(function(stroke) {
+        return stroke.reduce(maxpt);
+    }).reduce(maxpt);
+    var min = data_set.strokes.map(function(stroke) {
+        return stroke.reduce(minpt);
+    }).reduce(minpt);
+
     // use correct aspect ratio
-    var x_size = (max_x - min_x), y_size = (max_y - min_y);
+    var x_size = (max.x - min.x), y_size = (max.y - min.y);
     var size = Math.max(x_size, y_size);
-    function norm(x, y) {
-        x = CANVAS_RESOLUTION * RETINA_FACTOR * (x - min_x) / size;
-        y = CANVAS_RESOLUTION * RETINA_FACTOR * (y - min_y) / size;
-        // flip on the y axis
-        y = (CANVAS_RESOLUTION * RETINA_FACTOR) - y;
+    function norm(pt) {
+        // map to [0-1], y=0 at bottom (math style)
+        var x = (pt.x - min.x) / size;
+        var y = (pt.y - min.y) / size;
         return {x:x, y:y};
     }
-    p("// bb: "+min_x+","+min_y+"-"+max_x+","+max_y);
+    // remove dups
+    data_set.strokes = data_set.strokes.map(function(stroke) {
+        return stroke.map(norm);
+    });
+}
+
+function smooth(data_set) {
+}
+
+var canvas_id = 0;
+function draw_letter(data_set, caption) {
+    // data_set should be normalized (range [0,1], dups removed)
+    var id = "c" + (canvas_id++);
+    p("<canvas id="+JSON.stringify(id)+" title="+JSON.stringify(caption)+"></canvas>");
+    p("<script type=\"text/javascript\">");
+    p("(function() { ");
+    p("  var canvas = document.getElementById("+JSON.stringify(id)+");");
+    p("  canvas.width = canvas.height = "+CANVAS_RESOLUTION*RETINA_FACTOR+";");
+    p("  var ctx = canvas.getContext(\"2d\");");
+    var norm = function(pt) {
+        return { x: pt.x*CANVAS_RESOLUTION*RETINA_FACTOR,
+                 y: (1-pt.y)*CANVAS_RESOLUTION*RETINA_FACTOR };
+    };
     // set ctx.stroke style, whatever that property is.
     data_set.strokes.forEach(function(stroke) {
         p("ctx.beginPath();");
-        var start = norm(stroke[0][0], stroke[0][1]);
+        var start = norm(stroke[0]);
         p("ctx.moveTo("+start.x+","+start.y+");");
         for (var i=1; i<stroke.length; i++) {
-            if (stroke[i][0] == stroke[i-1][0] &&
-                stroke[i][1] == stroke[i-1][1]) continue; // skip repeated pts.
-            var pt = norm(stroke[i][0], stroke[i][1]);
+            var pt = norm(stroke[i]);
             p("ctx.lineTo("+pt.x+","+pt.y+");");
         }
         p("ctx.stroke();");
     });
     // label data
     p("  ctx.fillStyle=\"#008\";");
+    p("  ctx.font=\""+(10*RETINA_FACTOR)+"px sans-serif\";");
     p("  ctx.fillText("+JSON.stringify(data_set.source+" "+data_set.start)+", 0, 10, "+CANVAS_RESOLUTION*RETINA_FACTOR+");");
     p("})();");
     p("</script>");
@@ -86,5 +111,11 @@ function draw_letter(data_set) {
 
 // okay, draw the letters!
 for (var i=0; i<data.set.length; i++) {
-    draw_letter(data.set[i]);
+    normalize(data.set[i]);
+    draw_letter(data.set[i], "Unipen");
+
+/*
+    smooth(data.set[i]);
+    draw_letter(data.set[i], "Smoothed");
+*/
 }
