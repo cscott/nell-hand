@@ -3,6 +3,7 @@
 
 var CANVAS_RESOLUTION = 100;
 var RETINA_FACTOR = 1;
+var SMOOTH_N = 3, SMOOTH_ALPHA = .25;
 
 var program = require('commander');
 var fs = require('fs');
@@ -74,6 +75,25 @@ function normalize(data_set) {
 }
 
 function smooth(data_set) {
+    data_set.strokes = data_set.strokes.map(function(stroke) {
+        var nstroke = [];
+        for (var i=0; i<stroke.length; i++) {
+            var acc = { x:stroke[i].x * SMOOTH_ALPHA,
+                        y:stroke[i].y * SMOOTH_ALPHA };
+            var n = SMOOTH_N;
+            // [0, 1, 2, 3, 4 ] .. N = 2, length=5
+            while (n>0 && (i<n || i>=(stroke.length-n)))
+                n--;
+            for (var j=1; j<=n; j++) {
+                acc.x += stroke[i-j].x + stroke[i+j].x;
+                acc.y += stroke[i-j].y + stroke[i+j].y;
+            }
+            acc.x /= (2*n + SMOOTH_ALPHA);
+            acc.y /= (2*n + SMOOTH_ALPHA);
+            nstroke.push(acc);
+        }
+        return nstroke;
+    });
 }
 
 var canvas_id = 0;
@@ -114,8 +134,6 @@ for (var i=0; i<data.set.length; i++) {
     normalize(data.set[i]);
     draw_letter(data.set[i], "Unipen");
 
-/*
     smooth(data.set[i]);
     draw_letter(data.set[i], "Smoothed");
-*/
 }
