@@ -1,0 +1,22 @@
+{
+  "name": "nell-hand",
+  "version": "0.0.1",
+  "description": "handwriting recognition using HMMs",
+  "keywords": [ "nell", "handwriting" ],
+  "homepage": "https://github.com/cscott/nell-hand",
+  "bugs": {
+    "url": "https://github.com/cscott/nell-hand/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/cscott/nell-hand.git"
+  },
+  "dependencies": {
+    "requirejs": "1.0.x"
+  },
+  "devDependencies": {},
+  "optionalDependencies": {},
+  "engines": {
+    "node": "~0.7.5"
+  },
+}
