@@ -3,7 +3,9 @@
 
 var CANVAS_RESOLUTION = 100;
 var RETINA_FACTOR = 1;
+var DOT_SIZE = 1/40;
 var SMOOTH_N = 3, SMOOTH_ALPHA = .25;
+var RESAMPLE_INTERVAL = 1/13;
 
 var program = require('commander');
 var fs = require('fs');
@@ -26,16 +28,31 @@ p("canvas { width: "+CANVAS_RESOLUTION+"px; height: "+CANVAS_RESOLUTION+"px; bor
 p("</style></head>");
 p("<body><h1>Character Visualization</h1>");
 //p('Version', data.version);
-p("<p>" + data.set.length + "samples</p>");
+p("<p>" + data.set.length + "characters, ");
+p("avg <span id='avglen'></span> samples.</p>");
 
-var Point = function(x, y) {
-    this.x = x; this.y = y;
+var Point = function(x, y, isUp) {
+    this.x = x; this.y = y; this.isUp = isUp || false;
 };
 Point.prototype = {
-    clone: function() { return new Point(this.x, this.y); },
-    equals: function(p) { return Point.equals(this, p); }
+    clone: function() { return new Point(this.x, this.y, this.isUp); },
+    equals: function(p) { return Point.equals(this, p); },
+    dist: function(p) { return Point.dist(this, p); },
+    interp: function(p, amt) { return Point.interp(this, p, amt); }
 };
-Point.equals = function(a, b) { return (a.x ===b.x) && (a.y === b.y); };
+Point.equals = function(a, b) {
+    return (a.x === b.x) && (a.y === b.y) && (a.isUp === b.isUp);
+};
+Point.dist = function(a, b) {
+    var dx = a.x - b.x, dy = a.y - b.y;
+    return Math.sqrt(dx*dx + dy*dy);
+};
+Point.interp = function(p1, p2, amt) {
+    var x = p1.x + amt*(p2.x - p1.x);
+    var y = p1.y + amt*(p2.y - p1.y);
+    return new Point(x, y, p2.isUp);
+};
+
 var Box = function(tl, br) {
     this.tl = tl;
     this.br = br;
@@ -122,6 +139,39 @@ var smooth = function(data_set) {
     });
 };
 
+var singleStroke = function(data_set) {
+    var nstroke = [];
+    data_set.strokes.forEach(function(stroke) {
+        // add "pen up" stroke.
+        var first = stroke[0];
+        nstroke.push(new Point(first.x, first.y, true/*up!*/));
+        for (var j = 1; j < stroke.length; j++) {
+            nstroke.push(stroke[j]);
+        }
+    });
+    data_set.strokes = [ nstroke ];
+};
+var equidist = function(data_set, dist) {
+    console.assert(data_set.strokes.length===1);
+    var stroke = data_set.strokes[0];
+    var nstroke = [];
+    var last = stroke[0];
+    var d2next = 0;
+    stroke.forEach(function(pt) {
+        var d = Point.dist(last, pt);
+
+        while (d2next <= d) {
+            var amt = (d===0)?0:(d2next/d);
+            nstroke.push(Point.interp(last, pt, amt));
+            d2next += dist;
+        }
+        d2next -= d;
+        last = pt;
+    });
+    // XXX: what should we do with the last point?
+    data_set.strokes = [ nstroke ];
+};
+
 var canvas_id = 0;
 var draw_letter = function(data_set, caption) {
     // data_set should be normalized (range [0,1], dups removed)
@@ -134,19 +184,33 @@ var draw_letter = function(data_set, caption) {
     p("  var ctx = canvas.getContext(\"2d\");");
     var norm = function(pt) {
         return new Point(   pt.x *CANVAS_RESOLUTION*RETINA_FACTOR,
-                         (1-pt.y)*CANVAS_RESOLUTION*RETINA_FACTOR );
+                         (1-pt.y)*CANVAS_RESOLUTION*RETINA_FACTOR,
+                            pt.isUp);
     };
     // set ctx.stroke style, whatever that property is.
     data_set.strokes.forEach(function(stroke) {
         p("ctx.beginPath();");
-        var start = norm(stroke[0]);
-        p("ctx.moveTo("+start.x+","+start.y+");");
-        for (var i=1; i<stroke.length; i++) {
-            var pt = norm(stroke[i]);
-            p("ctx.lineTo("+pt.x+","+pt.y+");");
-        }
+        stroke.map(norm).forEach(function(pt, i) {
+            if (i==0 || pt.isUp) {
+                p("ctx.moveTo("+pt.x+","+pt.y+");");
+            } else {
+                p("ctx.lineTo("+pt.x+","+pt.y+");");
+            }
+        });
         p("ctx.stroke();");
     });
+
+    // points
+    p("ctx.beginPath();");
+    data_set.strokes.forEach(function(stroke) {
+        stroke.map(norm).forEach(function(pt) {
+            p("ctx.arc("+pt.x+","+pt.y+","+
+              (DOT_SIZE*CANVAS_RESOLUTION*RETINA_FACTOR)+","+
+              "0,2*Math.PI,true);");
+        });
+    });
+    p("ctx.fill();");
+
     // label data
     p("  ctx.fillStyle=\"#008\";");
     p("  ctx.font=\""+(10*RETINA_FACTOR)+"px sans-serif\";");
@@ -156,10 +220,21 @@ var draw_letter = function(data_set, caption) {
 };
 
 // okay, draw the letters!
+var avg_len = 0;
 for (var i=0; i<data.set.length; i++) {
     normalize(data.set[i]);
     draw_letter(data.set[i], "Unipen");
 
     smooth(data.set[i]);
-    draw_letter(data.set[i], "Smoothed");
+    singleStroke(data.set[i]);
+    //draw_letter(data.set[i], "Smoothed");
+
+    equidist(data.set[i], RESAMPLE_INTERVAL);
+    draw_letter(data.set[i], "Resampled");
+
+    avg_len += data.set[i].strokes[0].length;
 }
+avg_len /= data.set.length;
+p("<script type=\"text/javascript\">");
+p("document.getElementById('avglen').innerHTML='"+avg_len+"';");
+p("</script>");
