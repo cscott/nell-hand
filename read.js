@@ -9,16 +9,27 @@ var RESAMPLE_INTERVAL = 1/10;
 
 var program = require('commander');
 var fs = require('fs');
+var ProgressBar = require('progress');
 
 program
     .version('0.1')
+    .usage('[options] <json input file>')
+    .option('-H, --html <filename>', 'html file output for previewing data',
+            null)
     .parse(process.argv);
 
 var input_file = program.args[0];
 var data = JSON.parse(fs.readFileSync(input_file, 'utf-8'));
 
+var htmlStream = null;
+if (program.html) {
+    htmlStream = fs.createWriteStream(program.html, {encoding: 'utf-8'});
+}
+
 var p = function(s) {
-    console.log(s);
+    if (htmlStream) {
+        htmlStream.write(s+"\n");
+    }
 };
 
 p("<!DOCTYPE HTML>");
@@ -284,6 +295,8 @@ var draw_letter = function(data_set, caption) {
 
 // okay, draw the letters!
 var avg_len = 0;
+var bar = new ProgressBar('Writing features: [:bar] :percent :etas',
+                          { total: data.set.length, width: 30 });
 for (var i=0; i<data.set.length; i++) {
     normalize(data.set[i]);
     draw_letter(data.set[i], "Unipen");
@@ -301,8 +314,15 @@ for (var i=0; i<data.set.length; i++) {
     p("<!--");
     data.set[i].features.forEach(function(f) { p(f.join(',')); });
     p("-->");
+    bar.tick();
 }
 avg_len /= data.set.length;
 p("<script type=\"text/javascript\">");
 p("document.getElementById('avglen').innerHTML='"+avg_len+"';");
 p("</script>");
+
+if (htmlStream) {
+    htmlStream.end();
+    htmlStream.destroySoon();
+}
+console.log("\n"); // done w/ progress bar.
