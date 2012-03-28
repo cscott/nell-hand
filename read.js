@@ -5,7 +5,7 @@ var CANVAS_RESOLUTION = 100;
 var RETINA_FACTOR = 1;
 var DOT_SIZE = 1/40;
 var SMOOTH_N = 3, SMOOTH_ALPHA = .25;
-var RESAMPLE_INTERVAL = 1/13;
+var RESAMPLE_INTERVAL = 1/10;
 
 var program = require('commander');
 var fs = require('fs');
@@ -28,7 +28,7 @@ p("canvas { width: "+CANVAS_RESOLUTION+"px; height: "+CANVAS_RESOLUTION+"px; bor
 p("</style></head>");
 p("<body><h1>Character Visualization</h1>");
 //p('Version', data.version);
-p("<p>" + data.set.length + "characters, ");
+p("<p>" + data.set.length + " characters, ");
 p("avg <span id='avglen'></span> samples.</p>");
 
 var Point = function(x, y, isUp) {
@@ -172,6 +172,69 @@ var equidist = function(data_set, dist) {
     data_set.strokes = [ nstroke ];
 };
 
+var features = function(data_set) {
+    var points = data_set.strokes[0];
+    var features = points.map(function() { return []; });
+    for (var i=0; i<points.length; i++) {
+        var m2 = points[(i<2) ? 0 : (i-2)];
+        var m1 = points[(i<1) ? 0 : (i-1)];
+        var pt = points[i];
+        var p1 = points[((i+1)<points.length) ? (i+1) : (points.length-1)];
+        var p2 = points[((i+2)<points.length) ? (i+2) : (points.length-1)];
+
+        var dx1 = p1.x - m1.x, dy1 = p1.y - m1.y;
+        var ds1 = Math.sqrt(dx1*dx1 + dy1*dy1);
+
+        var dx2 = p2.x - m2.x, dy2 = p2.y - m2.y;
+        var ds2 = Math.sqrt(dx2*dx2 + dy2*dy2);
+
+        var bb = Box.fromPts([ m2, m1, pt, p1, p2 ]).size();
+        var L = m2.dist(m1) + m1.dist(pt) + pt.dist(p1) + p1.dist(p2);
+
+        // http://mathworld.wolfram.com/Point-LineDistance2-Dimensional.html
+        var dist2line = function(pt) {
+            // x0 = pt.x ; x1 = m2.x ; x2 = p2.x
+            // y0 = pt.y ; y1 = m2.y ; y2 = p2.y
+            // |(x2-x1)(y1-y0) - (x1-x0)(y2-y1)| / ds2
+            // |  dx2 * (m2.y - pt.y) - (m2.x - pt.x)*dy2 | / ds2
+            return Math.abs(dx2*(m2.y-pt.y) - dy2*(m2.x-pt.x)) / ds2;
+        };
+        var d0 = dist2line(m1), d1 = dist2line(pt), d2 = dist2line(p1);
+
+        features[i] = [
+            // curvature (fill in in next pass)
+            0,
+            0,
+            // writing direction
+            dx1/ds1,
+            dy1/ds1,
+            // vertical position.
+            pt.y,
+            // aspect
+            (bb.height - bb.width) / (bb.height + bb.width),
+            // curliness
+            (L / Math.max(bb.height, bb.width)) - 2,
+            // linearity
+            (d0*d0 + d1*d1 + d2*d2) / 5,
+            // slope
+            dx2/ds2,
+        ];
+    }
+    // fill in curvature features
+    for (var i=0; i<features.length; i++) {
+        var m1 = features[(i<1) ? 0 : (i-1)];
+        var ft = features[i];
+        var p1 = features[((i+1)<features.length)? (i+1) : (features.length-1)];
+
+        var cosm1 = m1[2], sinm1 = m1[3];
+        var cosp1 = p1[2], sinp1 = p1[3];
+        ft[0] = (cosm1*cosp1) + (sinm1*sinp1);
+        ft[1] = (cosm1*sinp1) - (sinm1*cosp1);
+    }
+    // save features
+    data_set.features = features;
+};
+
 var canvas_id = 0;
 var draw_letter = function(data_set, caption) {
     // data_set should be normalized (range [0,1], dups removed)
@@ -233,6 +296,11 @@ for (var i=0; i<data.set.length; i++) {
     draw_letter(data.set[i], "Resampled");
 
     avg_len += data.set[i].strokes[0].length;
+
+    features(data.set[i]);
+    p("<!--");
+    data.set[i].features.forEach(function(f) { p(f.join(',')); });
+    p("-->");
 }
 avg_len /= data.set.length;
 p("<script type=\"text/javascript\">");
