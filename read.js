@@ -21,14 +21,14 @@ program
 var input_file = program.args[0];
 var data = JSON.parse(fs.readFileSync(input_file, 'utf-8'));
 
-var htmlStream = null;
+var html_fd = -1;
 if (program.html) {
-    htmlStream = fs.createWriteStream(program.html, {encoding: 'utf-8'});
+    html_fd = fs.openSync(program.html, 'w');
 }
 
 var p = function(s) {
-    if (htmlStream) {
-        htmlStream.write(s+"\n");
+    if (html_fd >= 0) {
+        fs.writeSync(html_fd, s+"\n", null, 'utf8');
     }
 };
 
@@ -203,14 +203,17 @@ var features = function(data_set) {
         var L = m2.dist(m1) + m1.dist(pt) + pt.dist(p1) + p1.dist(p2);
 
         // http://mathworld.wolfram.com/Point-LineDistance2-Dimensional.html
-        var dist2line = function(pt) {
-            // x0 = pt.x ; x1 = m2.x ; x2 = p2.x
-            // y0 = pt.y ; y1 = m2.y ; y2 = p2.y
+        var dist2line = function(pp) {
+            // x0 = pp.x ; x1 = m2.x ; x2 = p2.x
+            // y0 = pp.y ; y1 = m2.y ; y2 = p2.y
             // |(x2-x1)(y1-y0) - (x1-x0)(y2-y1)| / ds2
-            // |  dx2 * (m2.y - pt.y) - (m2.x - pt.x)*dy2 | / ds2
-            return Math.abs(dx2*(m2.y-pt.y) - dy2*(m2.x-pt.x)) / ds2;
+            // |  dx2 * (m2.y - pp.y) - (m2.x - pp.x)*dy2 | / ds2
+            return Math.abs(dx2*(m2.y-pp.y) - dy2*(m2.x-pp.x)) / ds2;
         };
         var d0 = dist2line(m1), d1 = dist2line(pt), d2 = dist2line(p1);
+        var dN = 3;
+        if (m1.equals(m2)) dN--;
+        if (p1.equals(p2)) dN--;
 
         features[i] = [
             // curvature (fill in in next pass)
@@ -226,7 +229,7 @@ var features = function(data_set) {
             // curliness
             (L / Math.max(bb.height, bb.width)) - 2,
             // linearity
-            (d0*d0 + d1*d1 + d2*d2) / 5,
+            (d0*d0 + d1*d1 + d2*d2) / dN,
             // slope
             dx2/ds2,
         ];
@@ -241,6 +244,12 @@ var features = function(data_set) {
         var cosp1 = p1[2], sinp1 = p1[3];
         ft[0] = (cosm1*cosp1) + (sinm1*sinp1);
         ft[1] = (cosm1*sinp1) - (sinm1*cosp1);
+    }
+    // rescale to normalize to (approximately) [-1,1]
+    for (var i=0; i<features.length; i++) {
+        features[i][4] = (2 * features[i][4]) - 1;
+        features[i][6] = (((features[i][6] + 1) / 3.2) * 2) - 1;
+        features[i][7] = (features[i][7] * 100) - 1;
     }
     // save features
     data_set.features = features;
@@ -297,6 +306,7 @@ var draw_letter = function(data_set, caption) {
 var avg_len = 0;
 var bar = new ProgressBar('Writing features: [:bar] :percent :etas',
                           { total: data.set.length, width: 30 });
+var featmin, featmax;
 for (var i=0; i<data.set.length; i++) {
     normalize(data.set[i]);
     draw_letter(data.set[i], "Unipen");
@@ -311,6 +321,17 @@ for (var i=0; i<data.set.length; i++) {
     avg_len += data.set[i].strokes[0].length;
 
     features(data.set[i]);
+    if (i==0) {
+        featmax = data.set[i].features[0].slice(0);
+        featmin = data.set[i].features[0].slice(0);
+    }
+    data.set[i].features.forEach(function(featvect) {
+        featvect.forEach(function(f, i) {
+            if (f > featmax[i]) { featmax[i] = f; }
+            if (f < featmin[i]) { featmin[i] = f; }
+        });
+    });
+
     p("<!--");
     data.set[i].features.forEach(function(f) { p(f.join(',')); });
     p("-->");
@@ -321,8 +342,15 @@ p("<script type=\"text/javascript\">");
 p("document.getElementById('avglen').innerHTML='"+avg_len+"';");
 p("</script>");
 
-if (htmlStream) {
-    htmlStream.end();
-    htmlStream.destroySoon();
+if (html_fd >= 0) {
+    fs.closeSync(html_fd);
 }
-console.log("\n"); // done w/ progress bar.
+ // done w/ progress bar.
+console.log("\r                                                              ");
+// some stats
+if (html_fd >= 0) {
+    console.log("HTML output: "+program.html);
+}
+console.log("Average # features: "+avg_len);
+console.log("Max feat: "+featmax);
+console.log("Min feat: "+featmin);
