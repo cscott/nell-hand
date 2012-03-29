@@ -1,11 +1,13 @@
 #!/usr/bin/node
 // running with node 0.7.5, installed 'commander' and 'progress'
+// uses typed arrays, which landed in node 0.5.5.
 
 var CANVAS_RESOLUTION = 100;
 var RETINA_FACTOR = 1;
 var DOT_SIZE = 1/40;
 var SMOOTH_N = 3, SMOOTH_ALPHA = .25;
 var RESAMPLE_INTERVAL = 1/10;
+var RESAMPLE_HERTZ = 30; // sample rate written into parameter file
 
 var program = require('commander');
 var fs = require('fs');
@@ -14,6 +16,8 @@ var ProgressBar = require('progress');
 program
     .version('0.1')
     .usage('[options] <json input file>')
+    .option('-d, --parmdir <output dir>', 'directory for parameter file output',
+            null)
     .option('-H, --html <filename>', 'html file output for previewing data',
             null)
     .parse(process.argv);
@@ -307,7 +311,7 @@ var avg_len = 0;
 var bar = new ProgressBar('Writing features: [:bar] :percent :etas',
                           { total: data.set.length, width: 30 });
 var featmin, featmax;
-for (var i=0; i<data.set.length; i++) {
+for (var i=0; i<data.set.length; i++, bar.tick()) {
     normalize(data.set[i]);
     draw_letter(data.set[i], "Unipen");
 
@@ -326,16 +330,47 @@ for (var i=0; i<data.set.length; i++) {
         featmin = data.set[i].features[0].slice(0);
     }
     data.set[i].features.forEach(function(featvect) {
-        featvect.forEach(function(f, i) {
-            if (f > featmax[i]) { featmax[i] = f; }
-            if (f < featmin[i]) { featmin[i] = f; }
+        featvect.forEach(function(f, j) {
+            if (f > featmax[j]) { featmax[j] = f; }
+            if (f < featmin[j]) { featmin[j] = f; }
         });
     });
 
-    p("<!--");
-    data.set[i].features.forEach(function(f) { p(f.join(',')); });
-    p("-->");
-    bar.tick();
+    if (!program.parmdir) continue;
+
+    // Make 12-byte header
+    var nfeat = data.set[i].features.length;
+    if (nfeat === 0) continue; // hm, strange.
+    var featvlen = data.set[i].features[0].length;
+
+    var hbuf = new ArrayBuffer(12);
+    // nSamples         - number of samples in file (4-byte integer)
+    new Uint32Array(hbuf, 0)[0] = nfeat;
+    // sampPeriod       - sample period in 100ns units (4-byte integer)
+    new Uint32Array(hbuf, 4)[0] = Math.round(10000000/RESAMPLE_HERTZ);
+    // sampSize         - number of bytes per sample (2-byte integer)
+    new Uint16Array(hbuf, 8)[0] = featvlen * 4;
+    // parmKind         - a code indicating the sample kind (2-byte integer)
+    new Uint16Array(hbuf,10)[0] = 9; // USER: user defined sample kind
+
+    // Make a Float32 array w/ the feature vector.
+    var fbuf = new ArrayBuffer(4*nfeat*featvlen);
+    var featv = new Float32Array(fbuf);
+    data.set[i].features.forEach(function (fv, j) {
+        featv.set(fv, j*featvlen);
+    });
+
+    // convert to node-native buffer type and write file
+    var filename = i + ".htk";
+    while (filename.length < 8) { filename = "0" + filename; }
+    var parm_fd = fs.openSync(program.parmdir+"/"+filename, 'w');
+    var w = function(arraybuf) {
+        var b = new Buffer(new Uint8Array(arraybuf));
+        fs.writeSync(parm_fd, b, 0, b.length, null);
+    };
+    w(hbuf);
+    w(fbuf);
+    fs.closeSync(parm_fd);
 }
 avg_len /= data.set.length;
 p("<script type=\"text/javascript\">");
@@ -350,6 +385,9 @@ console.log("\r                                                              ");
 // some stats
 if (html_fd >= 0) {
     console.log("HTML output: "+program.html);
+}
+if (program.parmdir) {
+    console.log("Parameter files in: "+program.parmdir);
 }
 console.log("Average # features: "+avg_len);
 console.log("Max feat: "+featmax);
