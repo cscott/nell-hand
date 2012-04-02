@@ -16,7 +16,9 @@ var ProgressBar = require('progress');
 program
     .version('0.1')
     .usage('[options] <json input file>')
-    .option('-d, --parmdir <output dir>', 'directory for parameter file output',
+    .option('-P, --parmdir <output dir>', 'directory for parameter file output',
+            null)
+    .option('-M, --mlf <filename>', 'label file for parameter data',
             null)
     .option('-H, --html <filename>', 'html file output for previewing data',
             null)
@@ -29,7 +31,6 @@ var html_fd = -1;
 if (program.html) {
     html_fd = fs.openSync(program.html, 'w');
 }
-
 var p = function(s) {
     if (html_fd >= 0) {
         fs.writeSync(html_fd, s+"\n", null, 'utf8');
@@ -45,6 +46,17 @@ p("<body><h1>Character Visualization</h1>");
 //p('Version', data.version);
 p("<p>" + data.set.length + " characters, ");
 p("avg <span id='avglen'></span> samples.</p>");
+
+var mlf_fd = -1;
+if (program.mlf) {
+    mlf_fd = fs.openSync(program.mlf, 'w');
+}
+var m = function(s) {
+    if (mlf_fd >= 0) {
+        fs.writeSync(mlf_fd, s+"\n", null, 'utf8');
+    }
+};
+m("#!MLF!#");
 
 var Point = function(x, y, isUp) {
     this.x = x; this.y = y; this.isUp = isUp || false;
@@ -96,6 +108,7 @@ Box.fromPts = function(pts) {
 };
 
 var normalize = function(data_set) {
+    var ppmm = data_set.ppmm;
     var mkpt = function(p) { return new Point(p[0], p[1]); };
 
     // remove dups
@@ -117,13 +130,13 @@ var normalize = function(data_set) {
     var bbox = strokeBBs[0];
     strokeBBs.forEach(function(bb) { bbox.union(bb); });
 
-    // use correct aspect ratio
+    // use correct aspect ratio (including correcting for ppmm differences)
     var size = bbox.size();
-    size = Math.max(size.width, size.height);
+    size = Math.max(size.width/ppmm.x, size.height/ppmm.y);/* in mm */
     var norm = function(pt) {
         // map to [0-1], y=0 at bottom (math style)
-        var x = (pt.x - bbox.tl.x) / size;
-        var y = (pt.y - bbox.tl.y) / size;
+        var x = (pt.x - bbox.tl.x) / (ppmm.x * size);
+        var y = (pt.y - bbox.tl.y) / (ppmm.y * size);
         return new Point(x, y);
     };
     // remove dups
@@ -312,6 +325,7 @@ var bar = new ProgressBar('Writing features: [:bar] :percent :etas',
                           { total: data.set.length, width: 30 });
 var featmin, featmax;
 for (var i=0; i<data.set.length; i++, bar.tick()) {
+    var label = data.set[i].name;
     normalize(data.set[i]);
     draw_letter(data.set[i], "Unipen");
 
@@ -371,6 +385,10 @@ for (var i=0; i<data.set.length; i++, bar.tick()) {
     w(hbuf);
     w(fbuf);
     fs.closeSync(parm_fd);
+
+    m('"*/'+program.parmdir+'/'+filename+'"');
+    m(label);
+    m('.');
 }
 avg_len /= data.set.length;
 p("<script type=\"text/javascript\">");
@@ -380,7 +398,11 @@ p("</script>");
 if (html_fd >= 0) {
     fs.closeSync(html_fd);
 }
- // done w/ progress bar.
+if (mlf_fd >= 0) {
+    fs.closeSync(mlf_fd);
+}
+
+// done w/ progress bar.
 console.log("\r                                                              ");
 // some stats
 if (html_fd >= 0) {
