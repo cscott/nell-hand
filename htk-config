@@ -1,0 +1,9 @@
+# Coding parameters
+# 9 native features; add delta and acceleration features
+TARGETKIND=USER_D_A
+# 30 Hz
+TARGETRATE=333333
+# misc
+SAVEWITHCRC=T
+NATURALREADORDER=T
+NATURALWRITEORDER=T
