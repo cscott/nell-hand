@@ -12,8 +12,8 @@ ALL_SCRIPT=$(foreach l,$(SYMBOLS),parm/$(l).scr)
 ALL_LABEL=$(foreach l,$(SYMBOLS),parm/$(l).mlf)
 ALL_HTML=$(foreach l,$(SYMBOLS),html/$(l).html)
 
-# accuracy peaks for hmm2 at 67.81% =(
-all: hmm1/accuracy.txt hmm2/accuracy.txt hmm3/accuracy.txt hmm4/accuracy.txt
+# accuracy peaks for hmm8 at 83.01%
+all: $(foreach n,1 2 3 4 5 6 7 8 9,hmm$(n)/accuracy.txt)
 
 parms: $(ALL_PARMS)
 html: $(ALL_HTML)
@@ -90,6 +90,26 @@ hmm4/hmmdefs: htk-config hmm3/hmmdefs parm/symbols parm/all.mlf
 	mkdir -p hmm4
 	HERest -C htk-config -I parm/all.mlf -t 250 150 1000 \
 	  -S parm/train.scr -H hmm3/macros -H hmm3/hmmdefs -M hmm4 parm/symbols
+hmm5/hmmdefs: htk-config hmm4/hmmdefs parm/symbols parm/all.mlf
+	mkdir -p hmm5
+	HERest -C htk-config -I parm/all.mlf -t 250 150 1000 \
+	  -S parm/train.scr -H hmm4/macros -H hmm4/hmmdefs -M hmm5 parm/symbols
+hmm6/hmmdefs: htk-config hmm5/hmmdefs parm/symbols parm/all.mlf
+	mkdir -p hmm6
+	HERest -C htk-config -I parm/all.mlf -t 250 150 1000 \
+	  -S parm/train.scr -H hmm5/macros -H hmm5/hmmdefs -M hmm6 parm/symbols
+hmm7/hmmdefs: htk-config hmm6/hmmdefs parm/symbols parm/all.mlf
+	mkdir -p hmm7
+	HERest -C htk-config -I parm/all.mlf -t 250 150 1000 \
+	  -S parm/train.scr -H hmm6/macros -H hmm6/hmmdefs -M hmm7 parm/symbols
+hmm8/hmmdefs: htk-config hmm7/hmmdefs parm/symbols parm/all.mlf
+	mkdir -p hmm8
+	HERest -C htk-config -I parm/all.mlf -t 250 150 1000 \
+	  -S parm/train.scr -H hmm7/macros -H hmm7/hmmdefs -M hmm8 parm/symbols
+hmm9/hmmdefs: htk-config hmm8/hmmdefs parm/symbols parm/all.mlf
+	mkdir -p hmm9
+	HERest -C htk-config -I parm/all.mlf -t 250 150 1000 \
+	  -S parm/train.scr -H hmm8/macros -H hmm8/hmmdefs -M hmm9 parm/symbols
 
 %/recout.mlf: %/hmmdefs parm/train.scr parm/wdnet-single parm/dict parm/symbols
 	HVite -C htk-config -H $*/macros -H $*/hmmdefs -S parm/train.scr -i $@ -w parm/wdnet-single parm/dict parm/symbols
@@ -97,4 +117,4 @@ hmm4/hmmdefs: htk-config hmm3/hmmdefs parm/symbols parm/all.mlf
 	HResults -I parm/all.mlf parm/symbols $*/recout.mlf | tee $@
 
 clean:
-	$(RM) -rf html parm hmm0 hmm1 hmm2 hmm3 hmm4
+	$(RM) -rf html parm hmm?
