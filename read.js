@@ -255,6 +255,8 @@ var features = function(data_set) {
             (d0*d0 + d1*d1 + d2*d2) / dN,
             // slope
             dx2/ds2,
+            // pen up!
+            pt.isUp ? 1 : -1
         ];
     }
     // fill in curvature features
@@ -326,7 +328,7 @@ var draw_letter = function(data_set, caption) {
 };
 
 // okay, draw the letters!
-var avg_len = 0;
+var avg_len = 0, min_len, max_len;
 var bar = new ProgressBar('Writing features: [:bar] :percent :etas',
                           { total: data.set.length, width: 30 });
 var featmin, featmax;
@@ -345,10 +347,15 @@ for (var i=0, n=0; i<data.set.length; i++, bar.tick()) {
     avg_len += data.set[i].strokes[0].length;
 
     features(data.set[i]);
-    if (i==0) {
+    if (data.set[i].features.length===0) continue;
+    if (i===0) {
+        min_len = data.set[i].features.length;
+        max_len = data.set[i].features.length;
         featmax = data.set[i].features[0].slice(0);
         featmin = data.set[i].features[0].slice(0);
     }
+    min_len = Math.min(min_len, data.set[i].features.length);
+    max_len = Math.max(max_len, data.set[i].features.length);
     data.set[i].features.forEach(function(featvect) {
         featvect.forEach(function(f, j) {
             if (f > featmax[j]) { featmax[j] = f; }
@@ -416,6 +423,7 @@ s.close();
 if (program.parmdir) {
     console.log("Parameter files in: "+program.parmdir);
 }
+console.log("Min/Max # features: "+min_len+"/"+max_len);
 console.log("Average # features: "+avg_len);
 console.log("Max feat: "+featmax);
 console.log("Min feat: "+featmin);

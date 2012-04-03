@@ -14,7 +14,9 @@ ALL_HTML=$(foreach l,$(SYMBOLS),html/$(l).html)
 
 # accuracy peaks for hmm8 at 83.58%
 # hmmE uses 3 mixtures and 12 states, gets accuracy up to 87.17%
-all: $(foreach n,1 2 3 4 5 6 7 8 9 B C D E,hmm$(n)/accuracy.txt)
+# with 3 mix, 12 states, penUp feature and no deltas, hmmE gets up to 86.48%
+# with 5 mix,  " "     , "      "      "   "   "    , hmmH gets up to 87.84%
+all: $(foreach n,1 2 3 4 5 6 7 8 9 B C D E G H,hmm$(n)/accuracy.txt)
 
 parms: $(ALL_PARMS)
 html: $(ALL_HTML)
@@ -60,14 +62,15 @@ gen-%: parm/wdnet% hmm0/symbols
 	HSGen $< hmm0/symbols
 
 # global mean/variance computation
-hmm0/proto: htk-config proto parm/train.scr
+hmm0/proto hmm0/vFloors: htk-config proto parm/train.scr
 	mkdir -p hmm0
-	HCompV -C htk-config -m -S parm/train.scr -M hmm0 proto
+	HCompV -C htk-config -f 0.01 -m -S parm/train.scr -M hmm0 proto
 
 # create flat-start monophone models
-hmm0/macros:
+hmm0/macros: hmm0/vFloors
 	mkdir -p hmm0
-	echo "~o <VecSize> 27 <USER_D_A>" > $@
+	echo "~o <VecSize> 10 <USER>" > $@
+	cat $< >> $@
 hmm0/hmmdefs: hmm0/proto
 	mkdir -p hmm0
 	$(RM) -f $@
@@ -112,7 +115,10 @@ hmm9/hmmdefs: htk-config hmm8/hmmdefs parm/symbols parm/all.mlf
 	mkdir -p hmm9
 	HERest -C htk-config -I parm/all.mlf -t 250 150 1000 \
 	  -S parm/train.scr -H hmm8/macros -H hmm8/hmmdefs -M hmm9 parm/symbols
-# multiple mixtures
+#hmm9/hmmdefs: hmm5/hmmdefs
+#	mkdir -p hmm9
+#	cp hmm5/hmmdefs hmm5/macros hmm9
+# 3 mixtures
 hmmA/hmmdefs: htk-config hmm9/hmmdefs parm/symbols mix3.hed
 	mkdir -p hmmA
 	HHEd -C htk-config -H hmm9/macros -H hmm9/hmmdefs -M hmmA \
@@ -133,6 +139,19 @@ hmmE/hmmdefs: htk-config hmmD/hmmdefs parm/symbols parm/all.mlf
 	mkdir -p hmmE
 	HERest -C htk-config -I parm/all.mlf -t 250 150 1000 \
 	  -S parm/train.scr -H hmmD/macros -H hmmD/hmmdefs -M hmmE parm/symbols
+# 5 mixtures
+hmmF/hmmdefs: htk-config hmmE/hmmdefs parm/symbols mix5.hed
+	mkdir -p hmmF
+	HHEd -C htk-config -H hmmE/macros -H hmmE/hmmdefs -M hmmF \
+	  mix5.hed parm/symbols
+hmmG/hmmdefs: htk-config hmmF/hmmdefs parm/symbols parm/all.mlf
+	mkdir -p hmmG
+	HERest -C htk-config -I parm/all.mlf -t 250 150 1000 \
+	  -S parm/train.scr -H hmmF/macros -H hmmF/hmmdefs -M hmmG parm/symbols
+hmmH/hmmdefs: htk-config hmmG/hmmdefs parm/symbols parm/all.mlf
+	mkdir -p hmmH
+	HERest -C htk-config -I parm/all.mlf -t 250 150 1000 \
+	  -S parm/train.scr -H hmmG/macros -H hmmG/hmmdefs -M hmmH parm/symbols
 
 
 

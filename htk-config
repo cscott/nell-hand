@@ -1,6 +1,6 @@
 # Coding parameters
 # 9 native features; add delta and acceleration features
-TARGETKIND=USER_D_A
+TARGETKIND=USER
 # 30 Hz
 TARGETRATE=333333
 # misc
@@ -11,4 +11,4 @@ NATURALWRITEORDER=T
 # 10% = 83.26%
 # 20% = 83.06%
 # 30% = 83.12%
-VARFLOORPERCENTILE=15
+#VARFLOORPERCENTILE=15
