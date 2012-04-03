@@ -4,7 +4,7 @@
 
 var CANVAS_RESOLUTION = 100;
 var RETINA_FACTOR = 1;
-var DOT_SIZE = 1/40;
+var DOT_SIZE = 1/60;
 var SMOOTH_N = 3, SMOOTH_ALPHA = .25;
 var RESAMPLE_INTERVAL = 1/7;//1/10;
 var RESAMPLE_HERTZ = 30; // sample rate written into parameter file
@@ -128,6 +128,13 @@ var normalize = function(data_set) {
         }
         return nstrokes;
     });
+    // remove length-1 strokes (too short)
+    data_set.strokes = data_set.strokes.filter(function(stroke) {
+        return stroke.length > 1;
+    });
+    if (data_set.strokes.length === 0) {
+        return; // hmm.  bad data.
+    }
 
     // find bounding box
     var strokeBBs = data_set.strokes.map(function(stroke) {
@@ -145,7 +152,6 @@ var normalize = function(data_set) {
         var y = (pt.y - bbox.tl.y) / (ppmm.y * size);
         return new Point(x, y);
     };
-    // remove dups
     data_set.strokes = data_set.strokes.map(function(stroke) {
         return stroke.map(norm);
     });
@@ -188,28 +194,53 @@ var singleStroke = function(data_set) {
 var equidist = function(data_set, dist) {
     console.assert(data_set.strokes.length===1);
     var stroke = data_set.strokes[0];
+    if (stroke.length === 0) { return; /* bad data */ }
     var nstroke = [];
     var last = stroke[0];
     var d2next = 0;
+    var wasPenUp=true;
+    var first = true;
     stroke.forEach(function(pt) {
         var d = Point.dist(last, pt);
 
         while (d2next <= d) {
-            var amt = (d===0)?0:(d2next/d);
-            nstroke.push(Point.interp(last, pt, amt));
+            var amt = (first)?0:(d2next/d);
+            var npt = Point.interp(last, pt, amt);
+
+            var segmentIsUp = pt.isUp;
+            if (wasPenUp) { npt.isUp = true; }
+            wasPenUp = first ? false : segmentIsUp;
+
+            nstroke.push(npt);
             d2next += dist;
+            first = false;
         }
         d2next -= d;
         last = pt;
     });
-    // XXX: what should we do with the last point?
+    if (nstroke[nstroke.length-1].isUp) {
+        console.assert(!last.isUp, arguments[2]);
+        nstroke.push(last);
+    }
+    /*
+    // extrapolate last point an appropriate distance away
+    if (d2next/dist > 0.5 && stroke.length > 1) {
+        nstroke.push(last);
+        var last2 = stroke[stroke.length-2];
+        var namt = d2next / Point.dist(last2, last);
+        if (namt < 5) {
+            nstroke.push(Point.interp(last2, last, namt));
+        }
+    }
+    */
     data_set.strokes = [ nstroke ];
 };
 
 var features = function(data_set) {
+    var i;
     var points = data_set.strokes[0];
     var features = points.map(function() { return []; });
-    for (var i=0; i<points.length; i++) {
+    for (i=0; i<points.length; i++) {
         var m2 = points[(i<2) ? 0 : (i-2)];
         var m1 = points[(i<1) ? 0 : (i-1)];
         var pt = points[i];
@@ -260,7 +291,7 @@ var features = function(data_set) {
         ];
     }
     // fill in curvature features
-    for (var i=0; i<features.length; i++) {
+    for (i=0; i<features.length; i++) {
         var m1 = features[(i<1) ? 0 : (i-1)];
         var ft = features[i];
         var p1 = features[((i+1)<features.length)? (i+1) : (features.length-1)];
@@ -271,10 +302,10 @@ var features = function(data_set) {
         ft[1] = (cosm1*sinp1) - (sinm1*cosp1);
     }
     // rescale to normalize to (approximately) [-1,1]
-    for (var i=0; i<features.length; i++) {
+    for (i=0; i<features.length; i++) {
         features[i][4] = (2 * features[i][4]) - 1;
         features[i][6] = (((features[i][6] + 1) / 3.2) * 2) - 1;
-        features[i][7] = (features[i][7] * 100) - 1;
+        features[i][7] = (features[i][7] * 50) - 1;
     }
     // save features
     data_set.features = features;
@@ -328,23 +359,25 @@ var draw_letter = function(data_set, caption) {
 };
 
 // okay, draw the letters!
-var avg_len = 0, min_len, max_len;
+var avg_len = 0, avg_cnt = 0, min_len, max_len;
 var bar = new ProgressBar('Writing features: [:bar] :percent :etas',
                           { total: data.set.length, width: 30 });
 var featmin, featmax;
 for (var i=0, n=0; i<data.set.length; i++, bar.tick()) {
     var label = data.set[i].name;
     normalize(data.set[i]);
-    draw_letter(data.set[i], "Unipen");
+    draw_letter(data.set[i], "Unipen "+i);
 
     smooth(data.set[i]);
     singleStroke(data.set[i]);
-    //draw_letter(data.set[i], "Smoothed");
+    //draw_letter(data.set[i], "Smoothed "+i);
 
     equidist(data.set[i], RESAMPLE_INTERVAL);
-    draw_letter(data.set[i], "Resampled");
+    draw_letter(data.set[i], "Resampled "+i);
+    if (data.set[i].strokes[0].length===0) continue;
 
     avg_len += data.set[i].strokes[0].length;
+    avg_cnt += 1;
 
     features(data.set[i]);
     if (data.set[i].features.length===0) continue;
@@ -408,7 +441,7 @@ for (var i=0, n=0; i<data.set.length; i++, bar.tick()) {
     }
     n++; // keep separate count just in case we disqualify particular files
 }
-avg_len /= data.set.length;
+avg_len /= avg_cnt;
 p("<script type=\"text/javascript\">");
 p("document.getElementById('avglen').innerHTML='"+avg_len+"';");
 p("</script>");
@@ -423,7 +456,6 @@ s.close();
 if (program.parmdir) {
     console.log("Parameter files in: "+program.parmdir);
 }
-console.log("Min/Max # features: "+min_len+"/"+max_len);
-console.log("Average # features: "+avg_len);
-console.log("Max feat: "+featmax);
+console.log("Min/Avg/Max # features: "+min_len+"/"+Math.round(avg_len)+"/"+max_len);
 console.log("Min feat: "+featmin);
+console.log("Max feat: "+featmax);

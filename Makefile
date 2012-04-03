@@ -82,7 +82,7 @@ hmm0/hmmdefs: hmm0/proto
 	done
 hmm1/hmmdefs: htk-config hmm0/macros hmm0/hmmdefs parm/symbols parm/all.mlf
 	mkdir -p hmm1
-	HERest -C htk-config -I parm/all.mlf -t 250 150 1000 \
+	HERest -C htk-config -I parm/all.mlf \
 	  -S parm/train.scr -H hmm0/macros -H hmm0/hmmdefs -M hmm1 parm/symbols
 hmm2/hmmdefs: htk-config hmm1/hmmdefs parm/symbols parm/all.mlf
 	mkdir -p hmm2
@@ -174,3 +174,6 @@ very-clean: clean
 	$(RM) -rf html parm
 clean:
 	$(RM) -rf hmm?
+
+# prevent deletion of %/recout.mlf
+.SECONDARY:
