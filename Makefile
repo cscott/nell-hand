@@ -59,15 +59,16 @@ gen-%: parm/wdnet% hmm0/symbols
 	HSGen $< hmm0/symbols
 
 # global mean/variance computation
-hmm0/proto hmm0/vFloors: htk-config proto parm/train.scr
+hmm0/proto: htk-config proto parm/train.scr
 	mkdir -p hmm0
-	HCompV -C htk-config -f 0.01 -m -S parm/train.scr -M hmm0 proto
+	HCompV -C htk-config -m -S parm/train.scr -M hmm0 proto
 
 # create flat-start monophone models
-hmm0/macros: hmm0/vFloors
+hmm0/macros:
+	mkdir -p hmm0
 	echo "~o <VecSize> 27 <USER_D_A>" > $@
-	cat $< >> $@
 hmm0/hmmdefs: hmm0/proto
+	mkdir -p hmm0
 	$(RM) -f $@
 	touch $@
 	for s in $(SYMBOLS); do \
@@ -114,7 +115,10 @@ hmm9/hmmdefs: htk-config hmm8/hmmdefs parm/symbols parm/all.mlf
 %/recout.mlf: %/hmmdefs parm/train.scr parm/wdnet-single parm/dict parm/symbols
 	HVite -C htk-config -H $*/macros -H $*/hmmdefs -S parm/train.scr -i $@ -w parm/wdnet-single parm/dict parm/symbols
 %/accuracy.txt: %/recout.mlf parm/all.mlf parm/symbols
-	HResults -I parm/all.mlf parm/symbols $*/recout.mlf | tee $@
+	HResults -p -I parm/all.mlf parm/symbols $*/recout.mlf | \
+	  tee $@ | head -7
 
+very-clean: clean
+	$(RM) -rf html parm
 clean:
-	$(RM) -rf html parm hmm?
+	$(RM) -rf hmm?
