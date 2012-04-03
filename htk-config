@@ -1,6 +1,6 @@
 # Coding parameters
 # 9 native features; add delta and acceleration features
-TARGETKIND=USER
+TARGETKIND=USER_D_A
 # 30 Hz
 TARGETRATE=333333
 # misc
