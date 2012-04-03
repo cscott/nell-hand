@@ -12,7 +12,8 @@ ALL_SCRIPT=$(foreach l,$(SYMBOLS),parm/$(l).scr)
 ALL_LABEL=$(foreach l,$(SYMBOLS),parm/$(l).mlf)
 ALL_HTML=$(foreach l,$(SYMBOLS),html/$(l).html)
 
-all: hmm3/hmmdefs
+# accuracy peaks for hmm2 at 67.81% =(
+all: hmm1/accuracy.txt hmm2/accuracy.txt hmm3/accuracy.txt hmm4/accuracy.txt
 
 parms: $(ALL_PARMS)
 html: $(ALL_HTML)
@@ -23,12 +24,39 @@ html/%.html parm/%.mlf parm/%.scr: json/%.json read.js
 		-M parm/$*.mlf -P parm/$* -S parm/$*.scr \
 		$<
 
+# helper: dump parameter file
+parm/%.out: parm/%.htk
+	HList -C htk-config -t $<
+
 parm/train.scr: $(ALL_SCRIPT)
 	cat $(ALL_SCRIPT) > $@
 
 parm/all.mlf: $(ALL_LABEL)
 	echo "#!MLF!#" > $@
 	cat $^ | grep -v -F '#!MLF!#' >> $@
+
+parm/gram-single: Makefile
+	echo "( $(firstword $(SYMBOLS)) $(patsubst %,|%,$(wordlist 2,$(words $(SYMBOLS)),$(SYMBOLS))) )" > $@
+parm/gram-multi: Makefile
+	echo "( < $(firstword $(SYMBOLS)) $(patsubst %,|%,$(wordlist 2,$(words $(SYMBOLS)),$(SYMBOLS))) > )" > $@
+parm/wdnet%: parm/gram%
+	HParse $< $@
+parm/symbols: #Makefile
+	$(RM) -f $@
+	touch $@
+	for s in $(SYMBOLS); do \
+	  echo $$s >> $@ ; \
+	done
+parm/dict: Makefile
+	$(RM) -f $@
+	touch $@
+	for s in $(SYMBOLS); do \
+	  echo $$s $$s >> $@ ; \
+	done
+
+# test word network
+gen-%: parm/wdnet% hmm0/symbols
+	HSGen $< hmm0/symbols
 
 # global mean/variance computation
 hmm0/proto hmm0/vFloors: htk-config proto parm/train.scr
@@ -39,26 +67,34 @@ hmm0/proto hmm0/vFloors: htk-config proto parm/train.scr
 hmm0/macros: hmm0/vFloors
 	echo "~o <VecSize> 27 <USER_D_A>" > $@
 	cat $< >> $@
-hmm0/hmmdefs hmm0/symbols: hmm0/proto
-	$(RM) -f hmm0/hmmdefs hmm0/symbols
-	touch hmm0/hmmdefs hmm0/symbols
+hmm0/hmmdefs: hmm0/proto
+	$(RM) -f $@
+	touch $@
 	for s in $(SYMBOLS); do \
-	  echo $$s >> hmm0/symbols ; \
-	  echo '~h "'$$s'"' >> hmm0/hmmdefs ; \
-	  sed -e '0,/^~h/d' < hmm0/proto >> hmm0/hmmdefs ; \
+	  echo '~h "'$$s'"' >> $@ ; \
+	  sed -e '0,/^~h/d' < hmm0/proto >> $@ ; \
 	done
-hmm1/hmmdefs: htk-config hmm0/macros hmm0/hmmdefs hmm0/symbols parm/all.mlf
+hmm1/hmmdefs: htk-config hmm0/macros hmm0/hmmdefs parm/symbols parm/all.mlf
 	mkdir -p hmm1
 	HERest -C htk-config -I parm/all.mlf -t 250 150 1000 \
-	  -S parm/train.scr -H hmm0/macros -H hmm0/hmmdefs -M hmm1 hmm0/symbols
-hmm2/hmmdefs: htk-config hmm1/macros hmm1/hmmdefs hmm0/symbols parm/all.mlf
+	  -S parm/train.scr -H hmm0/macros -H hmm0/hmmdefs -M hmm1 parm/symbols
+hmm2/hmmdefs: htk-config hmm1/hmmdefs parm/symbols parm/all.mlf
 	mkdir -p hmm2
 	HERest -C htk-config -I parm/all.mlf -t 250 150 1000 \
-	  -S parm/train.scr -H hmm1/macros -H hmm1/hmmdefs -M hmm2 hmm0/symbols
-hmm3/hmmdefs: htk-config hmm2/macros hmm2/hmmdefs hmm0/symbols parm/all.mlf
+	  -S parm/train.scr -H hmm1/macros -H hmm1/hmmdefs -M hmm2 parm/symbols
+hmm3/hmmdefs: htk-config hmm2/hmmdefs parm/symbols parm/all.mlf
 	mkdir -p hmm3
 	HERest -C htk-config -I parm/all.mlf -t 250 150 1000 \
-	  -S parm/train.scr -H hmm2/macros -H hmm2/hmmdefs -M hmm3 hmm0/symbols
+	  -S parm/train.scr -H hmm2/macros -H hmm2/hmmdefs -M hmm3 parm/symbols
+hmm4/hmmdefs: htk-config hmm3/hmmdefs parm/symbols parm/all.mlf
+	mkdir -p hmm4
+	HERest -C htk-config -I parm/all.mlf -t 250 150 1000 \
+	  -S parm/train.scr -H hmm3/macros -H hmm3/hmmdefs -M hmm4 parm/symbols
+
+%/recout.mlf: %/hmmdefs parm/train.scr parm/wdnet-single parm/dict parm/symbols
+	HVite -C htk-config -H $*/macros -H $*/hmmdefs -S parm/train.scr -i $@ -w parm/wdnet-single parm/dict parm/symbols
+%/accuracy.txt: %/recout.mlf parm/all.mlf parm/symbols
+	HResults -I parm/all.mlf parm/symbols $*/recout.mlf | tee $@
 
 clean:
-	$(RM) -rf html parm hmm0 hmm1 hmm2 hmm3
+	$(RM) -rf html parm hmm0 hmm1 hmm2 hmm3 hmm4
