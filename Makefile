@@ -12,7 +12,7 @@ ALL_SCRIPT=$(foreach l,$(SYMBOLS),parm/$(l).scr)
 ALL_LABEL=$(foreach l,$(SYMBOLS),parm/$(l).mlf)
 ALL_HTML=$(foreach l,$(SYMBOLS),html/$(l).html)
 
-# accuracy peaks for hmm8 at 83.01%
+# accuracy peaks for hmm8 at 83.58%
 all: $(foreach n,1 2 3 4 5 6 7 8 9,hmm$(n)/accuracy.txt)
 
 parms: $(ALL_PARMS)
