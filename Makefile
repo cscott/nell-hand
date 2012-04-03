@@ -13,7 +13,8 @@ ALL_LABEL=$(foreach l,$(SYMBOLS),parm/$(l).mlf)
 ALL_HTML=$(foreach l,$(SYMBOLS),html/$(l).html)
 
 # accuracy peaks for hmm8 at 83.58%
-all: $(foreach n,1 2 3 4 5 6 7 8 9,hmm$(n)/accuracy.txt)
+# hmmE uses 3 mixtures and 12 states, gets accuracy up to 87.17%
+all: $(foreach n,1 2 3 4 5 6 7 8 9 B C D E,hmm$(n)/accuracy.txt)
 
 parms: $(ALL_PARMS)
 html: $(ALL_HTML)
@@ -111,6 +112,29 @@ hmm9/hmmdefs: htk-config hmm8/hmmdefs parm/symbols parm/all.mlf
 	mkdir -p hmm9
 	HERest -C htk-config -I parm/all.mlf -t 250 150 1000 \
 	  -S parm/train.scr -H hmm8/macros -H hmm8/hmmdefs -M hmm9 parm/symbols
+# multiple mixtures
+hmmA/hmmdefs: htk-config hmm9/hmmdefs parm/symbols mix3.hed
+	mkdir -p hmmA
+	HHEd -C htk-config -H hmm9/macros -H hmm9/hmmdefs -M hmmA \
+	  mix3.hed parm/symbols
+hmmB/hmmdefs: htk-config hmmA/hmmdefs parm/symbols parm/all.mlf
+	mkdir -p hmmB
+	HERest -C htk-config -I parm/all.mlf -t 250 150 1000 \
+	  -S parm/train.scr -H hmmA/macros -H hmmA/hmmdefs -M hmmB parm/symbols
+hmmC/hmmdefs: htk-config hmmB/hmmdefs parm/symbols parm/all.mlf
+	mkdir -p hmmC
+	HERest -C htk-config -I parm/all.mlf -t 250 150 1000 \
+	  -S parm/train.scr -H hmmB/macros -H hmmB/hmmdefs -M hmmC parm/symbols
+hmmD/hmmdefs: htk-config hmmC/hmmdefs parm/symbols parm/all.mlf
+	mkdir -p hmmD
+	HERest -C htk-config -I parm/all.mlf -t 250 150 1000 \
+	  -S parm/train.scr -H hmmC/macros -H hmmC/hmmdefs -M hmmD parm/symbols
+hmmE/hmmdefs: htk-config hmmD/hmmdefs parm/symbols parm/all.mlf
+	mkdir -p hmmE
+	HERest -C htk-config -I parm/all.mlf -t 250 150 1000 \
+	  -S parm/train.scr -H hmmD/macros -H hmmD/hmmdefs -M hmmE parm/symbols
+
+
 
 %/recout.mlf: %/hmmdefs parm/train.scr parm/wdnet-single parm/dict parm/symbols
 	HVite -C htk-config -H $*/macros -H $*/hmmdefs -S parm/train.scr -i $@ -w parm/wdnet-single parm/dict parm/symbols
