@@ -17,7 +17,18 @@ ALL_HTML=$(foreach l,$(SYMBOLS),html/$(l).html)
 # with 3 mix, 12 states, penUp feature and no deltas, hmmE gets up to 86.48%
 # with 5 mix,  " "     , "      "      "   "   "    , hmmH gets up to 87.84%
 # adding deltas and acceleration to the above, hmmJ reaches 90.07%
-# average 9 mixtures, hmmN reaches 92.57%
+# average 9 mixtures,  6 states, penup, delta, accel: hmmN reaches 88.69%
+# average 9 mixtures,  8 states, penup, delta, accel: hmmN reaches 90.56%
+# average 9 mixtures, 10 states, penup, delta, accel: hmmN reaches 91.84%
+# average 9 mixtures, 12 states, penup, delta, accel: hmmN reaches 92.57%
+# average 9 mixtures, 14 states, penup, delta, accel: hmmN reaches 93.41%
+# average 9 mixtures, 16 states, penup, delta, accel: hmmN reaches 94.17%[85.77]
+# avg 9 mix, 5x2  structure: 88.69% (10 states, like 4 states paralleled)[76.08]
+# avg 9 mix, 5x2x structure: 90.99%                                      [76.60]
+# avg 9 mix, 6x2  structure: 90.24% (12 states, like 6 states paralleled)[78.81]
+# avg 9 mix, 6x2x structure: 92.16%                                      [77.48]
+# avg 9 mix, 7x2  structure: 90.56% (14 states, like 8 states paralleled)[81.30]
+# avg 9 mix, 7x2x structure: 93.17%                                      [81.65]
 all: $(foreach n,1 2 3 4 5 6 7 8 9 B D F H I J K L M N,hmm$(n)/accuracy.txt)
 
 parms: $(ALL_PARMS)
