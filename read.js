@@ -22,21 +22,33 @@ program
             null)
     .option('-H, --html <filename>', 'html file output for previewing data',
             null)
+    .option('-T, --train <number>', 'omit 1 in <number> examples from training set', Number, 0)
+    .option('-S, --script <filename>', 'list of parameter files for training', null)
     .parse(process.argv);
 
 var input_file = program.args[0];
 var data = JSON.parse(fs.readFileSync(input_file, 'utf-8'));
 
-var html_fd = -1;
-if (program.html) {
-    html_fd = fs.openSync(program.html, 'w');
-}
-var p = function(s) {
-    if (html_fd >= 0) {
-        fs.writeSync(html_fd, s+"\n", null, 'utf8');
+var mklogfunc = function(what, opt_filename) {
+    var fd = -1;
+    if (opt_filename) {
+        fd = fs.openSync(opt_filename, 'w');
     }
+    var f = function(s) {
+        if (fd >= 0) {
+            fs.writeSync(fd, s+"\n", null, 'utf8');
+        }
+    };
+    f.close = function() {
+        if (fd >= 0) {
+            fs.closeSync(fd);
+            console.log(what+": "+opt_filename);
+        }
+    };
+    return f;
 };
 
+var p = mklogfunc('HTML output', program.html);
 p("<!DOCTYPE HTML>");
 p("<html><head><title>Character Visualization</title>");
 p("<style type=\"text/css\">");
@@ -47,16 +59,10 @@ p("<body><h1>Character Visualization</h1>");
 p("<p>" + data.set.length + " characters, ");
 p("avg <span id='avglen'></span> samples.</p>");
 
-var mlf_fd = -1;
-if (program.mlf) {
-    mlf_fd = fs.openSync(program.mlf, 'w');
-}
-var m = function(s) {
-    if (mlf_fd >= 0) {
-        fs.writeSync(mlf_fd, s+"\n", null, 'utf8');
-    }
-};
+var m = mklogfunc('Label file', program.mlf);
 m("#!MLF!#");
+
+var s = mklogfunc('Script file', program.script);
 
 var Point = function(x, y, isUp) {
     this.x = x; this.y = y; this.isUp = isUp || false;
@@ -324,7 +330,7 @@ var avg_len = 0;
 var bar = new ProgressBar('Writing features: [:bar] :percent :etas',
                           { total: data.set.length, width: 30 });
 var featmin, featmax;
-for (var i=0; i<data.set.length; i++, bar.tick()) {
+for (var i=0, n=0; i<data.set.length; i++, bar.tick()) {
     var label = data.set[i].name;
     normalize(data.set[i]);
     draw_letter(data.set[i], "Unipen");
@@ -375,9 +381,9 @@ for (var i=0; i<data.set.length; i++, bar.tick()) {
     });
 
     // convert to node-native buffer type and write file
-    var filename = i + ".htk";
-    while (filename.length < 8) { filename = "0" + filename; }
-    var parm_fd = fs.openSync(program.parmdir+"/"+filename, 'w');
+    var filename = "" + i;
+    while (filename.length < 4) { filename = "0" + filename; }
+    var parm_fd = fs.openSync(program.parmdir+"/"+filename+".htk", 'w');
     var w = function(arraybuf) {
         var b = new Buffer(new Uint8Array(arraybuf));
         fs.writeSync(parm_fd, b, 0, b.length, null);
@@ -386,28 +392,27 @@ for (var i=0; i<data.set.length; i++, bar.tick()) {
     w(fbuf);
     fs.closeSync(parm_fd);
 
-    m('"*/'+program.parmdir+'/'+filename+'"');
+    m('"'+program.parmdir+'/'+filename+'.lab"');
     m(label);
     m('.');
+
+    if (program.train === 0 || (n % program.train !== 0)) {
+        s(program.parmdir+'/'+filename+'.htk');
+    }
+    n++; // keep separate count just in case we disqualify particular files
 }
 avg_len /= data.set.length;
 p("<script type=\"text/javascript\">");
 p("document.getElementById('avglen').innerHTML='"+avg_len+"';");
 p("</script>");
 
-if (html_fd >= 0) {
-    fs.closeSync(html_fd);
-}
-if (mlf_fd >= 0) {
-    fs.closeSync(mlf_fd);
-}
-
 // done w/ progress bar.
 console.log("\r                                                              ");
 // some stats
-if (html_fd >= 0) {
-    console.log("HTML output: "+program.html);
-}
+p.close();
+m.close();
+s.close();
+
 if (program.parmdir) {
     console.log("Parameter files in: "+program.parmdir);
 }
