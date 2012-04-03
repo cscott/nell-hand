@@ -17,7 +17,7 @@ ALL_HTML=$(foreach l,$(SYMBOLS),html/$(l).html)
 # with 3 mix, 12 states, penUp feature and no deltas, hmmE gets up to 86.48%
 # with 5 mix,  " "     , "      "      "   "   "    , hmmH gets up to 87.84%
 # adding deltas and acceleration to the above, hmmJ reaches 90.07%
-all: $(foreach n,1 2 3 4 5 6 7 8 9 B C D E G H I J,hmm$(n)/accuracy.txt)
+all: $(foreach n,1 2 3 4 5 6 7 8 9 B C D E G H I J L M N,hmm$(n)/accuracy.txt)
 
 parms: $(ALL_PARMS)
 html: $(ALL_HTML)
@@ -161,6 +161,25 @@ hmmJ/hmmdefs: htk-config hmmI/hmmdefs parm/symbols parm/all.mlf
 	mkdir -p hmmJ
 	HERest -C htk-config -I parm/all.mlf -t 250 150 1000 \
 	  -S parm/train.scr -H hmmI/macros -H hmmI/hmmdefs -M hmmJ parm/symbols
+# avg 7 mixtures
+hmmK/hmmdefs: htk-config hmmJ/hmmdefs parm/symbols mix7.hed
+	mkdir -p hmmK
+	HERest -C htk-config -I parm/all.mlf -s hmmK/stats \
+	  -S parm/train.scr -H hmmJ/macros -H hmmJ/hmmdefs -M hmmK parm/symbols
+	HHEd -C htk-config -H hmmJ/macros -H hmmJ/hmmdefs -M hmmK \
+	  mix7.hed parm/symbols
+hmmL/hmmdefs: htk-config hmmK/hmmdefs parm/symbols parm/all.mlf
+	mkdir -p hmmL
+	HERest -C htk-config -I parm/all.mlf \
+	  -S parm/train.scr -H hmmK/macros -H hmmK/hmmdefs -M hmmL parm/symbols
+hmmM/hmmdefs: htk-config hmmL/hmmdefs parm/symbols parm/all.mlf
+	mkdir -p hmmM
+	HERest -C htk-config -I parm/all.mlf -t 250 150 1000 \
+	  -S parm/train.scr -H hmmL/macros -H hmmL/hmmdefs -M hmmM parm/symbols
+hmmN/hmmdefs: htk-config hmmM/hmmdefs parm/symbols parm/all.mlf
+	mkdir -p hmmN
+	HERest -C htk-config -I parm/all.mlf -t 250 150 1000 \
+	  -S parm/train.scr -H hmmM/macros -H hmmM/hmmdefs -M hmmN parm/symbols
 
 
 
