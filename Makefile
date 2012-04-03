@@ -40,23 +40,27 @@ parm/all.mlf: $(ALL_LABEL)
 	cat $^ | grep -v -F '#!MLF!#' >> $@
 
 parm/gram-single: Makefile
-	echo "( $(firstword $(SYMBOLS)) $(patsubst %,|%,$(wordlist 2,$(words $(SYMBOLS)),$(SYMBOLS))) )" > $@
+	echo "( $(firstword $(SYMBOLS)) $(patsubst %,|%,$(wordlist 2,$(words $(SYMBOLS)),$(SYMBOLS))) )" > $@.tmp
+	if cmp -s $@.tmp $@ ; then $(RM) $@.tmp ; else mv $@.tmp $@ ; fi
 parm/gram-multi: Makefile
-	echo "( < $(firstword $(SYMBOLS)) $(patsubst %,|%,$(wordlist 2,$(words $(SYMBOLS)),$(SYMBOLS))) > )" > $@
+	echo "( < $(firstword $(SYMBOLS)) $(patsubst %,|%,$(wordlist 2,$(words $(SYMBOLS)),$(SYMBOLS))) > )" > $@.tmp
+	if cmp -s $@.tmp $@ ; then $(RM) $@.tmp ; else mv $@.tmp $@ ; fi
 parm/wdnet%: parm/gram%
 	HParse $< $@
-parm/symbols: #Makefile
-	$(RM) -f $@
-	touch $@
+parm/symbols: Makefile
+	$(RM) -f $@.tmp
+	touch $@.tmp
 	for s in $(SYMBOLS); do \
-	  echo $$s >> $@ ; \
+	  echo $$s >> $@.tmp ; \
 	done
+	if cmp -s $@.tmp $@ ; then $(RM) $@.tmp ; else mv $@.tmp $@ ; fi
 parm/dict: Makefile
-	$(RM) -f $@
-	touch $@
+	$(RM) -f $@.tmp
+	touch $@.tmp
 	for s in $(SYMBOLS); do \
-	  echo $$s $$s >> $@ ; \
+	  echo $$s $$s >> $@.tmp ; \
 	done
+	if cmp -s $@.tmp $@ ; then $(RM) $@.tmp ; else mv $@.tmp $@ ; fi
 
 # test word network
 gen-%: parm/wdnet% hmm0/symbols
