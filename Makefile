@@ -31,15 +31,16 @@ ALL_HTML=$(foreach l,$(SYMBOLS),html/$(l).html)
 # avg 9 mix, 6x2x structure: 92.16%                                      [77.48]
 # avg 9 mix, 7x2  structure: 90.56% (14 states, like 8 states paralleled)[81.30]
 # avg 9 mix, 7x2x structure: 93.17%                                      [81.65]
-all: $(foreach n,1 2 3 4 5 6 7 8 9 B D F H J K L M N O,hmm$(n)/accuracy.txt)
+all: $(foreach n,1 2 3 4 5 6 7 8 9 B D F H J K L M N O,hmm$(n)/accuracy.txt) \
+	hmmO/accuracy-qual.txt
 
 parms: $(ALL_PARMS)
 html: $(ALL_HTML)
 
-html/%.html parm/%.mlf parm/%.scr: json/%.json read.js
+html/%.html parm/%.mlf parm/%.scr parm/%-qual.scr: json/%.json read.js
 	@mkdir -p html parm/$*
 	./read.js -T $(TRAINAMT) -H html/$*.html \
-		-M parm/$*.mlf -P parm/$* -S parm/$*.scr \
+		-M parm/$*.mlf -P parm/$* -S parm/$*.scr -Q parm/$*-qual.scr \
 		$<
 
 # helper: dump parameter file
@@ -48,6 +49,8 @@ parm/%.out: parm/%.htk
 
 parm/train.scr: $(ALL_SCRIPT)
 	cat $(ALL_SCRIPT) > $@
+parm/qual.scr: $(foreach l,$(SYMBOLS),parm/$(l)-qual.scr)
+	cat $^ > $@
 
 parm/all.mlf: $(ALL_LABEL)
 	echo "#!MLF!#" > $@
@@ -225,8 +228,13 @@ hmmO/hmmdefs: htk-config hmmN/hmmdefs parm/symbols parm/all.mlf
 
 %/recout.mlf: %/hmmdefs parm/train.scr parm/wdnet-single parm/dict parm/symbols
 	HVite -C htk-config -H $*/macros -H $*/hmmdefs -S parm/train.scr -i $@ -w parm/wdnet-single parm/dict parm/symbols
+%/recout-qual.mlf: %/hmmdefs parm/qual.scr parm/wdnet-single parm/dict parm/symbols
+	HVite -C htk-config -H $*/macros -H $*/hmmdefs -S parm/qual.scr -i $@ -w parm/wdnet-single parm/dict parm/symbols
 %/accuracy.txt: %/recout.mlf parm/all.mlf parm/symbols
 	HResults -p -I parm/all.mlf parm/symbols $*/recout.mlf | \
+	  tee $@ | head -7
+%/accuracy-qual.txt: %/recout-qual.mlf parm/all.mlf parm/symbols
+	HResults -p -I parm/all.mlf parm/symbols $*/recout-qual.mlf | \
 	  tee $@ | head -7
 
 very-clean: clean

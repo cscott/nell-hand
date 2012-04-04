@@ -24,6 +24,7 @@ program
             null)
     .option('-T, --train <number>', 'omit 1 in <number> examples from training set', Number, 0)
     .option('-S, --script <filename>', 'list of parameter files for training', null)
+    .option('-Q, --qualscript <filename>', 'list of parameter files *not* used for training', null)
     .parse(process.argv);
 
 var input_file = program.args[0];
@@ -63,6 +64,7 @@ var m = mklogfunc('Label file', program.mlf);
 m("#!MLF!#");
 
 var s = mklogfunc('Script file', program.script);
+var q = mklogfunc('Qualification file', program.qualscript);
 
 var Point = function(x, y, isUp) {
     this.x = x; this.y = y; this.isUp = isUp || false;
@@ -438,6 +440,8 @@ for (var i=0, n=0; i<data.set.length; i++, bar.tick()) {
 
     if (program.train === 0 || (n % program.train !== 0)) {
         s(program.parmdir+'/'+filename+'.htk');
+    } else {
+        q(program.parmdir+'/'+filename+'.htk');
     }
     n++; // keep separate count just in case we disqualify particular files
 }
@@ -452,6 +456,7 @@ console.log("\r                                                              ");
 p.close();
 m.close();
 s.close();
+q.close();
 
 if (program.parmdir) {
     console.log("Parameter files in: "+program.parmdir);
