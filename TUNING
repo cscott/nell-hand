@@ -76,3 +76,10 @@ Same features, experimenting with alternate topologies:
 
 Two allographs:
   1 mixture,  16 states:            88.40% [88.05%] (1 allo = 85.77% [84.44%])
+  9 mixtures, 16 states:                 % [  .  %] (1 allo = 94.17%         )
+ 16 mixtures, 16 states:            96.74% [94.18%] (1 allo = 95.40% [93.45%])
+
+Four allographs:
+  1 mixture,  16 states:            91.67% [90.87%] (1 allo = 85.77% [84.44%])
+  9 mixtures, 16 states:                 % [  .  %] (1 allo = 94.17%         )
+ 16 mixtures, 16 states:                 % [  .  %] (1 allo = 95.40% [93.45%])
