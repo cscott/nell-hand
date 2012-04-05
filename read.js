@@ -25,7 +25,7 @@ program
     .option('-T, --train <number>', 'omit 1 in <number> examples from training set', Number, 0)
     .option('-S, --script <filename>', 'list of parameter files for training', null)
     .option('-Q, --qualscript <filename>', 'list of parameter files *not* used for training', null)
-    .option('-A, --allographs <number>', 'Randomly spread the input into <number> allograph classes', 1)
+    .option('-A, --allographs <number>', 'Randomly spread the input into <number> allograph classes', Number, 1)
     .parse(process.argv);
 
 var input_file = program.args[0];

@@ -43,8 +43,9 @@ parm/all.mlf: $(ALL_LABEL)
 	cat $^ | grep -v -F '#!MLF!#' >> $@
 parm/allograph.mlf parm/all2.mlf: $(ALL_LABEL)
 ifeq ($(ALLOGRAPHS),1)
+	$(MAKE) parm/all.mlf
 	cp parm/all.mlf parm/allograph.mlf
-	cp parm/all2.mlf parm/allograph.mlf
+	cp parm/all.mlf parm/all2.mlf
 else
 	echo "#!MLF!#" > parm/allograph.mlf
 	cat $(foreach l,$^,$(l).allograph) | grep -v -F '#!MLF!#' >> parm/allograph.mlf
