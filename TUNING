@@ -15,7 +15,24 @@ Pen Up feature, no delta or acceleration features:
 Pen Up feature, plus delta and acceleration features:
  x5 mixtures, 12 states:            90.07% (hmmN)
   9 mixtures,  6 states:            88.69% (hmmN)
-  9 mixtures,  8 states:            90.56% (hmmN)
+  1 mixtures,  8 states:            81.29% (hmm9) [80.06%]
+  2 mixtures,  8 states:            84.18% (hmmR) [83.48%]
+  4 mixtures,  8 states:            86.61% (hmmU) [85.75%]
+  6 mixtures,  8 states:            87.98% (hmmX) [87.10%]
+  8 mixtures,  8 states:            89.61% (hmm10)[88.77%]
+  9 mixtures,  8 states:            89.90% (hmm13)[89.19%] (was 90.56% w hmmN)
+ 10 mixtures,  8 states:            90.36% (hmm16)[89.56%]
+ 12 mixtures,  8 states:            90.94% (hmm19)[90.08%]
+ 14 mixtures,  8 states:            91.42% (hmm1C)[90.23%]
+ 16 mixtures,  8 states:            91.91% (hmmO) [90.54%]
+ 18 mixtures,  8 states:            92.31% (hmmR) [90.96%]
+ 20 mixtures,  8 states:            92.55% (hmmU) [91.05%]
+ 22 mixtures,  8 states:            92.78% (hmmX) [91.38%]
+ 24 mixtures,  8 states:            92.99% (hmm10)[91.43%]
+ 26 mixtures,  8 states:            93.20% (hmm13)[91.59%]
+ 28 mixtures,  8 states:            93.42% (hmm16)[91.41%]
+ 30 mixtures,  8 states:            93.60% (hmm19)[91.70%]
+ 32 mixtures,  8 states:            93.96% (hmm1E)[91.78%]
   9 mixtures, 10 states:            91.84% (hmmN)
   9 mixtures, 12 states:            92.57% (hmmN)
   9 mixtures, 14 states:            93.41% (hmmN)
@@ -48,7 +65,11 @@ Same features, experimenting with alternate topologies:
   9 mixtures, 12 states:            92.16%
  7x2  topo == 14 states, like two 8 state models in parallel
   1 mixture,  14 states:            81.30%
-  9 mixtures, 14 states:            90.56%
- 7x2x topo == 14 states, like two 8 state models in parallel *WITH 2 CROSSOVER*
-  1 mixture,  14 states:            81.65%
+  9 mixtures, 14 states:            90.56% (compared to 90.56% for 9 mix 8 st)
+   -- identical results suggest that parallel models are identical, ie
+      training technique used for this series isn't actually separating
+      input into two classes.
+ 7x2x topo == 14 states, like two 8 state models in parallel *WITH CROSSOVER*
+  1 mixture,  14 states:            81.65% (compared to 81.29% for 1 mix 8 st)
   9 mixtures, 14 states:            93.17% (compared to 90.56% for 9 mix 8 st)
+                                           (compared to 93.41% for 9 mix 14 st)
