@@ -14,29 +14,9 @@ ALL_SCRIPT=$(foreach l,$(SYMBOLS),parm/$(l).scr)
 ALL_LABEL=$(foreach l,$(SYMBOLS),parm/$(l).mlf)
 ALL_HTML=$(foreach l,$(SYMBOLS),html/$(l).html)
 
-# accuracy peaks for hmm8 at 83.58%
-# hmmE uses 3 mixtures and 12 states, gets accuracy up to 87.17%
-# with 3 mix, 12 states, penUp feature and no deltas, hmmE gets up to 86.48%
-# with 5 mix,  " "     , "      "      "   "   "    , hmmH gets up to 87.84%
-# adding deltas and acceleration to the above, hmmJ reaches 90.07%
-# average 9 mixtures,  6 states, penup, delta, accel: hmmN reaches 88.69%
-# average 9 mixtures,  8 states, penup, delta, accel: hmmN reaches 90.56%
-# average 9 mixtures, 10 states, penup, delta, accel: hmmN reaches 91.84%
-# average 9 mixtures, 12 states, penup, delta, accel: hmmN reaches 92.57%
-# average 9 mixtures, 14 states, penup, delta, accel: hmmN reaches 93.41%
-# average 9 mixtures, 16 states, penup, delta, accel: hmmN reaches 94.17%[85.77]
-# average 12 mixtures,16 states, penup, delta, accel: hmmN reaches 94.50%[85.77]
-# average 12 mixtures,16 states, penup, delta, accel: hmmO reaches 94.59%[85.77]
-# average 16 mixtures,16 states, penup, delta, accel: hmmO reaches 95.40%[85.77]
-# avg 9 mix, 5x2  structure: 88.69% (10 states, like 4 states paralleled)[76.08]
-# avg 9 mix, 5x2x structure: 90.99%                                      [76.60]
-# avg 9 mix, 6x2  structure: 90.24% (12 states, like 6 states paralleled)[78.81]
-# avg 9 mix, 6x2x structure: 92.16%                                      [77.48]
-# avg 9 mix, 7x2  structure: 90.56% (14 states, like 8 states paralleled)[81.30]
-# avg 9 mix, 7x2x structure: 93.17%                                      [81.65]
-all: $(foreach n,1 2 3 4 5 6 7 8 9 B D F H J K L M N O,hmm$(n)/accuracy.txt) \
-	hmmO/accuracy-qual.txt
-qual: $(foreach n,1 2 3 4 5 6 7 8 9 B D F H J K L M N O,hmm$(n)/accuracy-qual.txt)
+all: accuracy qual
+accuracy: $(foreach n,1 2 3 4 5 6 7 8 9 B D F H J K L M N O Q R T U W X Z 10 12 13 15 16 18 19 1B 1C 1D 1E,hmm$(n)/accuracy.txt)
+qual: $(foreach n,1 2 3 4 5 6 7 8 9 B D F H J K L M N O Q R T U W X Z 10 12 13 15 16 18 19 1B 1C 1D 1E,hmm$(n)/accuracy-qual.txt)
 
 parms: $(ALL_PARMS)
 html: $(ALL_HTML)
@@ -228,6 +208,159 @@ hmmO/hmmdefs: htk-config hmmN/hmmdefs parm/symbols parm/all.mlf
 	HERest -C htk-config -I parm/all.mlf -t 250 150 1000 \
 	  -S parm/train.scr -H hmmN/macros -H hmmN/hmmdefs -M hmmO parm/symbols
 
+# up to 18 mixtures
+hmmP/hmmdefs: htk-config hmmO/hmmdefs parm/symbols
+	mkdir -p hmmP
+	HERest -C htk-config -I parm/all.mlf -s hmmP/stats \
+	  -S parm/train.scr -H hmmO/macros -H hmmO/hmmdefs -M hmmP parm/symbols
+	echo "LS hmmP/stats" > hmmP/mix.hed
+	echo "PS 18 0.2" >> hmmP/mix.hed
+	HHEd -C htk-config -H hmmO/macros -H hmmO/hmmdefs -M hmmP \
+	  hmmP/mix.hed parm/symbols
+hmmQ/hmmdefs: htk-config hmmP/hmmdefs parm/symbols parm/all.mlf
+	mkdir -p hmmQ
+	HERest -C htk-config -I parm/all.mlf -t 250 150 1000 \
+	  -S parm/train.scr -H hmmP/macros -H hmmP/hmmdefs -M hmmQ parm/symbols
+hmmR/hmmdefs: htk-config hmmQ/hmmdefs parm/symbols parm/all.mlf
+	mkdir -p hmmR
+	HERest -C htk-config -I parm/all.mlf -t 250 150 1000 \
+	  -S parm/train.scr -H hmmQ/macros -H hmmQ/hmmdefs -M hmmR parm/symbols
+
+# up to 20 mixtures
+hmmS/hmmdefs: htk-config hmmR/hmmdefs parm/symbols
+	mkdir -p hmmS
+	HERest -C htk-config -I parm/all.mlf -s hmmS/stats \
+	  -S parm/train.scr -H hmmR/macros -H hmmR/hmmdefs -M hmmS parm/symbols
+	echo "LS hmmS/stats" > hmmS/mix.hed
+	echo "PS 20 0.2" >> hmmS/mix.hed
+	HHEd -C htk-config -H hmmR/macros -H hmmR/hmmdefs -M hmmS \
+	  hmmS/mix.hed parm/symbols
+hmmT/hmmdefs: htk-config hmmS/hmmdefs parm/symbols parm/all.mlf
+	mkdir -p hmmT
+	HERest -C htk-config -I parm/all.mlf -t 250 150 1000 \
+	  -S parm/train.scr -H hmmS/macros -H hmmS/hmmdefs -M hmmT parm/symbols
+hmmU/hmmdefs: htk-config hmmT/hmmdefs parm/symbols parm/all.mlf
+	mkdir -p hmmU
+	HERest -C htk-config -I parm/all.mlf -t 250 150 1000 \
+	  -S parm/train.scr -H hmmT/macros -H hmmT/hmmdefs -M hmmU parm/symbols
+
+# up to 22 mixtures
+hmmV/hmmdefs: htk-config hmmU/hmmdefs parm/symbols
+	mkdir -p hmmV
+	HERest -C htk-config -I parm/all.mlf -s hmmV/stats \
+	  -S parm/train.scr -H hmmU/macros -H hmmU/hmmdefs -M hmmV parm/symbols
+	echo "LS hmmV/stats" > hmmV/mix.hed
+	echo "PS 22 0.2" >> hmmV/mix.hed
+	HHEd -C htk-config -H hmmU/macros -H hmmU/hmmdefs -M hmmV \
+	  hmmV/mix.hed parm/symbols
+hmmW/hmmdefs: htk-config hmmV/hmmdefs parm/symbols parm/all.mlf
+	mkdir -p hmmW
+	HERest -C htk-config -I parm/all.mlf -t 250 150 1000 \
+	  -S parm/train.scr -H hmmV/macros -H hmmV/hmmdefs -M hmmW parm/symbols
+hmmX/hmmdefs: htk-config hmmW/hmmdefs parm/symbols parm/all.mlf
+	mkdir -p hmmX
+	HERest -C htk-config -I parm/all.mlf -t 250 150 1000 \
+	  -S parm/train.scr -H hmmW/macros -H hmmW/hmmdefs -M hmmX parm/symbols
+
+# up to 24 mixtures
+hmmY/hmmdefs: htk-config hmmX/hmmdefs parm/symbols
+	mkdir -p hmmY
+	HERest -C htk-config -I parm/all.mlf -s hmmY/stats \
+	  -S parm/train.scr -H hmmX/macros -H hmmX/hmmdefs -M hmmY parm/symbols
+	echo "LS hmmY/stats" > hmmY/mix.hed
+	echo "PS 24 0.2" >> hmmY/mix.hed
+	HHEd -C htk-config -H hmmX/macros -H hmmX/hmmdefs -M hmmY \
+	  hmmY/mix.hed parm/symbols
+hmmZ/hmmdefs: htk-config hmmY/hmmdefs parm/symbols parm/all.mlf
+	mkdir -p hmmZ
+	HERest -C htk-config -I parm/all.mlf -t 250 150 1000 \
+	  -S parm/train.scr -H hmmY/macros -H hmmY/hmmdefs -M hmmZ parm/symbols
+hmm10/hmmdefs: htk-config hmmZ/hmmdefs parm/symbols parm/all.mlf
+	mkdir -p hmm10
+	HERest -C htk-config -I parm/all.mlf -t 250 150 1000 \
+	  -S parm/train.scr -H hmmZ/macros -H hmmZ/hmmdefs -M hmm10 parm/symbols
+
+# up to 26 mixtures
+hmm11/hmmdefs: htk-config hmm10/hmmdefs parm/symbols
+	mkdir -p hmm11
+	HERest -C htk-config -I parm/all.mlf -s hmm11/stats \
+	  -S parm/train.scr -H hmm10/macros -H hmm10/hmmdefs -M hmm11 parm/symbols
+	echo "LS hmm11/stats" > hmm11/mix.hed
+	echo "PS 26 0.2" >> hmm11/mix.hed
+	HHEd -C htk-config -H hmm10/macros -H hmm10/hmmdefs -M hmm11 \
+	  hmm11/mix.hed parm/symbols
+hmm12/hmmdefs: htk-config hmm11/hmmdefs parm/symbols parm/all.mlf
+	mkdir -p hmm12
+	HERest -C htk-config -I parm/all.mlf -t 250 150 1000 \
+	  -S parm/train.scr -H hmm11/macros -H hmm11/hmmdefs -M hmm12 parm/symbols
+hmm13/hmmdefs: htk-config hmm12/hmmdefs parm/symbols parm/all.mlf
+	mkdir -p hmm13
+	HERest -C htk-config -I parm/all.mlf -t 250 150 1000 \
+	  -S parm/train.scr -H hmm12/macros -H hmm12/hmmdefs -M hmm13 parm/symbols
+
+# up to 28 mixtures
+hmm14/hmmdefs: htk-config hmm13/hmmdefs parm/symbols
+	mkdir -p hmm14
+	HERest -C htk-config -I parm/all.mlf -s hmm14/stats \
+	  -S parm/train.scr -H hmm13/macros -H hmm13/hmmdefs -M hmm14 parm/symbols
+	echo "LS hmm14/stats" > hmm14/mix.hed
+	echo "PS 28 0.2" >> hmm14/mix.hed
+	HHEd -C htk-config -H hmm13/macros -H hmm13/hmmdefs -M hmm14 \
+	  hmm14/mix.hed parm/symbols
+hmm15/hmmdefs: htk-config hmm14/hmmdefs parm/symbols parm/all.mlf
+	mkdir -p hmm15
+	HERest -C htk-config -I parm/all.mlf -t 250 150 1000 \
+	  -S parm/train.scr -H hmm14/macros -H hmm14/hmmdefs -M hmm15 parm/symbols
+hmm16/hmmdefs: htk-config hmm15/hmmdefs parm/symbols parm/all.mlf
+	mkdir -p hmm16
+	HERest -C htk-config -I parm/all.mlf -t 250 150 1000 \
+	  -S parm/train.scr -H hmm15/macros -H hmm15/hmmdefs -M hmm16 parm/symbols
+
+# up to 30 mixtures
+hmm17/hmmdefs: htk-config hmm16/hmmdefs parm/symbols
+	mkdir -p hmm17
+	HERest -C htk-config -I parm/all.mlf -s hmm17/stats \
+	  -S parm/train.scr -H hmm16/macros -H hmm16/hmmdefs -M hmm17 parm/symbols
+	echo "LS hmm17/stats" > hmm17/mix.hed
+	echo "PS 30 0.2" >> hmm17/mix.hed
+	HHEd -C htk-config -H hmm16/macros -H hmm16/hmmdefs -M hmm17 \
+	  hmm17/mix.hed parm/symbols
+hmm18/hmmdefs: htk-config hmm17/hmmdefs parm/symbols parm/all.mlf
+	mkdir -p hmm18
+	HERest -C htk-config -I parm/all.mlf -t 250 150 1000 \
+	  -S parm/train.scr -H hmm17/macros -H hmm17/hmmdefs -M hmm18 parm/symbols
+hmm19/hmmdefs: htk-config hmm18/hmmdefs parm/symbols parm/all.mlf
+	mkdir -p hmm19
+	HERest -C htk-config -I parm/all.mlf -t 250 150 1000 \
+	  -S parm/train.scr -H hmm18/macros -H hmm18/hmmdefs -M hmm19 parm/symbols
+
+# up to 32 mixtures
+hmm1A/hmmdefs: htk-config hmm19/hmmdefs parm/symbols
+	mkdir -p hmm1A
+	HERest -C htk-config -I parm/all.mlf -s hmm1A/stats \
+	  -S parm/train.scr -H hmm19/macros -H hmm19/hmmdefs -M hmm1A parm/symbols
+	echo "LS hmm1A/stats" > hmm1A/mix.hed
+	echo "PS 32 0.2" >> hmm1A/mix.hed
+	HHEd -C htk-config -H hmm19/macros -H hmm19/hmmdefs -M hmm1A \
+	  hmm1A/mix.hed parm/symbols
+hmm1B/hmmdefs: htk-config hmm1A/hmmdefs parm/symbols parm/all.mlf
+	mkdir -p hmm1B
+	HERest -C htk-config -I parm/all.mlf -t 250 150 1000 \
+	  -S parm/train.scr -H hmm1A/macros -H hmm1A/hmmdefs -M hmm1B parm/symbols
+hmm1C/hmmdefs: htk-config hmm1B/hmmdefs parm/symbols parm/all.mlf
+	mkdir -p hmm1C
+	HERest -C htk-config -I parm/all.mlf -t 250 150 1000 \
+	  -S parm/train.scr -H hmm1B/macros -H hmm1B/hmmdefs -M hmm1C parm/symbols
+
+# extra training of 32-mixture version
+hmm1D/hmmdefs: htk-config hmm1C/hmmdefs parm/symbols parm/all.mlf
+	mkdir -p hmm1D
+	HERest -C htk-config -I parm/all.mlf -t 250 150 1000 \
+	  -S parm/train.scr -H hmm1C/macros -H hmm1C/hmmdefs -M hmm1D parm/symbols
+hmm1E/hmmdefs: htk-config hmm1D/hmmdefs parm/symbols parm/all.mlf
+	mkdir -p hmm1E
+	HERest -C htk-config -I parm/all.mlf -t 250 150 1000 \
+	  -S parm/train.scr -H hmm1D/macros -H hmm1D/hmmdefs -M hmm1E parm/symbols
 
 
 %/recout.mlf: %/hmmdefs parm/train.scr parm/wdnet-single parm/dict parm/symbols
