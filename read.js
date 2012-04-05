@@ -25,6 +25,7 @@ program
     .option('-T, --train <number>', 'omit 1 in <number> examples from training set', Number, 0)
     .option('-S, --script <filename>', 'list of parameter files for training', null)
     .option('-Q, --qualscript <filename>', 'list of parameter files *not* used for training', null)
+    .option('-A, --allographs <number>', 'Randomly spread the input into <number> allograph classes', 1)
     .parse(process.argv);
 
 var input_file = program.args[0];
@@ -61,7 +62,11 @@ p("<p>" + data.set.length + " characters, ");
 p("avg <span id='avglen'></span> samples.</p>");
 
 var m = mklogfunc('Label file', program.mlf);
+var ma = mklogfunc('Label file (random allographs)',
+                   (program.allographs>1 && program.mlf) ?
+                   program.mlf + ".allograph" : null);
 m("#!MLF!#");
+ma('#!MLF!#');
 
 var s = mklogfunc('Script file', program.script);
 var q = mklogfunc('Qualification file', program.qualscript);
@@ -435,8 +440,19 @@ for (var i=0, n=0; i<data.set.length; i++, bar.tick()) {
     fs.closeSync(parm_fd);
 
     m('"'+program.parmdir+'/'+filename+'.lab"');
-    m(label);
+    ma('"'+program.parmdir+'/'+filename+'.lab"');
+    if (program.allographs===1) {
+        m(label);
+    } else {
+        var a = Math.floor(i * program.allographs / data.set.length);
+        ma(label+(1+a)+"\t"+label);
+        for (var j=0; j<program.allographs; j++) {
+            if (j>0) m('///');
+            m(label+(j+1)+"\t"+label);
+        }
+    }
     m('.');
+    ma('.');
 
     if (program.train === 0 || (n % program.train !== 0)) {
         s(program.parmdir+'/'+filename+'.htk');
@@ -455,6 +471,7 @@ console.log("\r                                                              ");
 // some stats
 p.close();
 m.close();
+ma.close();
 s.close();
 q.close();
 

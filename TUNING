@@ -73,3 +73,6 @@ Same features, experimenting with alternate topologies:
   1 mixture,  14 states:            81.65% (compared to 81.29% for 1 mix 8 st)
   9 mixtures, 14 states:            93.17% (compared to 90.56% for 9 mix 8 st)
                                            (compared to 93.41% for 9 mix 14 st)
+
+Two allographs:
+  1 mixture,  16 states:            88.40% [88.05%] (1 allo = 85.77% [84.44%])
