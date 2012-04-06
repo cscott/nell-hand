@@ -118,3 +118,8 @@ Eight allographs:
  24 mixtures,  8 states:            98.41% [93.65%] (1 allo = 92.99% [91.43%])
   1 mixture,  12 states:            93.72% [92.25%] (1 allo = 85.18% [84.46%])
  24 mixtures, 12 states:            98.70% [93.16%] (1 allo = 95.29% [93.27%])
+
+============= DISCRETE HMMs ==============
+
+Four allographs, DISCRETE: treevq-euclidean distance 256/64/16
+  8 states:                         94.70% [91.43%]

@@ -1,8 +1,17 @@
 # Coding parameters
-# 9 native features; add delta and acceleration features
-TARGETKIND=USER_D_A
-# 30 Hz
+# 10 native features; add delta and acceleration features
+# 100Hz sampling (made up number, keeps offsets nice)
+SOURCEKIND=USER
+SOURCEFORMAT=HTK
+SOURCERATE=100000
+
+TARGETKIND=USER_D_A_V
+TARGETFORMAT=HTK
 TARGETRATE=100000
+
+NSTREAMS=3
+VQTABLE="codebook"
+
 # misc
 SAVEWITHCRC=T
 NATURALREADORDER=T
