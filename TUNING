@@ -90,11 +90,15 @@ Two allographs:
  24 mixtures, 16 states:            97.49% [94.36%] (1 allo = 96.06% [94.00%])
 
 Three allographs:
+  1 mixture,   8 states:            86.48% [85.55%] (1 allo = 81.29% [80.06%])
+ 24 mixtures,  8 states:            96.66% [93.40%] (1 allo = 92.99% [91.43%])
   1 mixture,  12 states:            89.61% [89.34%] (1 allo = 85.18% [84.46%])
  24 mixtures, 12 states:            97.59% [94.18%] (1 allo = 95.29% [93.27%])
 
 Four allographs:
   1 mixture,   8 states:            88.07% [86.50%] (1 allo = 81.29% [80.06%])
+  9 mixtures,  8 states:            95.24% [92.85%] (1 allo = 89.90% [89.19%])
+ 16 mixtures,  8 states:            96.44% [93.43%] (1 allo = 91.91% [90.54%])
  24 mixtures,  8 states:            97.30% [93.63%] (1 allo = 92.99% [91.43%])
   1 mixture,  12 states:            90.03% [89.23%] (1 allo = 85.18% [84.46%])
  24 mixtures, 12 states:            98.19% [93.92%] (1 allo = 95.29% [93.27%])
@@ -110,5 +114,7 @@ Six allographs:
  24 mixtures, 12 states:            98.60% [93.72%] (1 allo = 95.29% [93.27%])
 
 Eight allographs:
+  1 mixture,   8 states:            90.91% [89.63%] (1 allo = 81.29% [80.06%])
+ 24 mixtures,  8 states:            98.41% [93.65%] (1 allo = 92.99% [91.43%])
   1 mixture,  12 states:            93.72% [92.25%] (1 allo = 85.18% [84.46%])
  24 mixtures, 12 states:            98.70% [93.16%] (1 allo = 95.29% [93.27%])
