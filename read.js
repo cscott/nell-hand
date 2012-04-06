@@ -7,7 +7,7 @@ var RETINA_FACTOR = 1;
 var DOT_SIZE = 1/60;
 var SMOOTH_N = 3, SMOOTH_ALPHA = .25;
 var RESAMPLE_INTERVAL = 1/7;//1/10;
-var RESAMPLE_HERTZ = 30; // sample rate written into parameter file
+var RESAMPLE_HERTZ = 100; // sample rate written into parameter file
 
 var program = require('commander');
 var fs = require('fs');

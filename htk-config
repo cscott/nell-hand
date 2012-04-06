@@ -2,11 +2,12 @@
 # 9 native features; add delta and acceleration features
 TARGETKIND=USER_D_A
 # 30 Hz
-TARGETRATE=333333
+TARGETRATE=100000
 # misc
 SAVEWITHCRC=T
 NATURALREADORDER=T
 NATURALWRITEORDER=T
+
 # variance floor
 # 10% = 83.26%
 # 20% = 83.06%
