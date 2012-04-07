@@ -5,7 +5,7 @@ DIGITS=0 1 2 3 4 5 6 7 8 9
 # set aside 20% of the training data for evaluation.
 TRAINAMT=5
 # total # of mixtures
-MIX=9
+MIX=16
 # total # of allographs to train
 ALLOGRAPHS=4
 
@@ -17,8 +17,8 @@ ALL_LABEL=$(foreach l,$(SYMBOLS),parm/$(l).mlf)
 ALL_HTML=$(foreach l,$(SYMBOLS),html/$(l).html)
 
 all: accuracy qual
-accuracy: $(foreach n,9 A B C D E F G,hmm$(n)/accuracy.txt)
-qual:     $(foreach n,9 A B C D E F G,hmm$(n)/accuracy-qual.txt)
+accuracy: $(foreach n,9 X Z 10 11,hmm$(n)/accuracy.txt)
+qual: $(foreach n,9 X Z 10 11,hmm$(n)/accuracy-qual.txt)
 
 parms: $(ALL_PARMS)
 html: $(ALL_HTML)
@@ -193,13 +193,15 @@ hmm9/hmmdefs: htk-config hmm8/hmmdefs parm/dict parm/symbols parm/all2.mlf
 	HERest -C htk-config -I hmm9/aligned.mlf -t 250 150 1000 \
 	  -S parm/train.scr -H hmm8/macros -H hmm8/hmmdefs -M hmm9 parm/symbols
 
-# make a tied mixture codebook
-hmmA/hmmdefs: htk-config hmm9/hmmdefs parm/symbols tie.hed
+# scale up to $(MIX) mixtures... slowly
+hmmA/hmmdefs: htk-config hmm9/hmmdefs parm/symbols
 	mkdir -p hmmA
 	HERest -C htk-config -I hmm9/aligned.mlf -s hmmA/stats \
 	  -S parm/train.scr -H hmm9/macros -H hmm9/hmmdefs -M hmmA parm/symbols
+	echo "LS hmmA/stats" > hmmA/mix.hed
+	echo "PS $(MIX) 0.2 5" >> hmmA/mix.hed
 	HHEd -C htk-config -H hmm9/macros -H hmm9/hmmdefs -M hmmA \
-	  tie.hed parm/symbols
+	  hmmA/mix.hed parm/symbols
 hmmB/hmmdefs: htk-config hmmA/hmmdefs parm/symbols parm/all.mlf
 	mkdir -p hmmB
 	HERest -C htk-config -I hmm9/aligned.mlf \
@@ -207,42 +209,184 @@ hmmB/hmmdefs: htk-config hmmA/hmmdefs parm/symbols parm/all.mlf
 hmmC/hmmdefs: htk-config hmmB/hmmdefs parm/dict parm/symbols parm/all2.mlf
 	mkdir -p hmmC
 	HVite -C htk-config -H hmmB/macros -H hmmB/hmmdefs -S parm/train.scr \
-              -i hmmC/aligned.mlf -m -o SWT -I parm/all2.mlf -c 20 \
+              -i hmmC/aligned.mlf -m -o SWT -I parm/all2.mlf \
               -y lab parm/dict parm/symbols
-	HERest -C htk-config -I hmmC/aligned.mlf \
+	HERest -C htk-config -I hmmC/aligned.mlf -t 250 150 1000 \
 	  -S parm/train.scr -H hmmB/macros -H hmmB/hmmdefs -M hmmC parm/symbols
 hmmD/hmmdefs: htk-config hmmC/hmmdefs parm/dict parm/symbols parm/all2.mlf
 	mkdir -p hmmD
 	HVite -C htk-config -H hmmC/macros -H hmmC/hmmdefs -S parm/train.scr \
-              -i hmmD/aligned.mlf -m -o SWT -I parm/all2.mlf -c 20 \
+              -i hmmD/aligned.mlf -m -o SWT -I parm/all2.mlf \
               -y lab parm/dict parm/symbols
-	HERest -C htk-config -I hmmD/aligned.mlf \
+	HERest -C htk-config -I hmmD/aligned.mlf -t 250 150 1000 \
 	  -S parm/train.scr -H hmmC/macros -H hmmC/hmmdefs -M hmmD parm/symbols
 
-# a little more training
-hmmE/hmmdefs: htk-config hmmD/hmmdefs parm/dict parm/symbols parm/all2.mlf
+hmmE/hmmdefs: htk-config hmmD/hmmdefs parm/symbols
 	mkdir -p hmmE
-	HVite -C htk-config -H hmmD/macros -H hmmD/hmmdefs -S parm/train.scr \
-              -i hmmE/aligned.mlf -m -o SWT -I parm/all2.mlf -c 20 \
-              -y lab parm/dict parm/symbols
-	HERest -C htk-config -I hmmE/aligned.mlf \
+	HERest -C htk-config -I hmmD/aligned.mlf -s hmmE/stats \
 	  -S parm/train.scr -H hmmD/macros -H hmmD/hmmdefs -M hmmE parm/symbols
-
-hmmF/hmmdefs: htk-config hmmE/hmmdefs parm/dict parm/symbols parm/all2.mlf
+	echo "LS hmmE/stats" > hmmE/mix.hed
+	echo "PS $(MIX) 0.2 4" >> hmmE/mix.hed
+	HHEd -C htk-config -H hmmD/macros -H hmmD/hmmdefs -M hmmE \
+	  hmmE/mix.hed parm/symbols
+hmmF/hmmdefs: htk-config hmmE/hmmdefs parm/symbols parm/all.mlf
 	mkdir -p hmmF
-	HVite -C htk-config -H hmmE/macros -H hmmE/hmmdefs -S parm/train.scr \
-              -i hmmF/aligned.mlf -m -o SWT -I parm/all2.mlf -c 20 \
-              -y lab parm/dict parm/symbols
-	HERest -C htk-config -I hmmF/aligned.mlf \
+	HERest -C htk-config -I hmmD/aligned.mlf \
 	  -S parm/train.scr -H hmmE/macros -H hmmE/hmmdefs -M hmmF parm/symbols
-
 hmmG/hmmdefs: htk-config hmmF/hmmdefs parm/dict parm/symbols parm/all2.mlf
 	mkdir -p hmmG
 	HVite -C htk-config -H hmmF/macros -H hmmF/hmmdefs -S parm/train.scr \
-              -i hmmG/aligned.mlf -m -o SWT -I parm/all2.mlf -c 20 \
+              -i hmmG/aligned.mlf -m -o SWT -I parm/all2.mlf \
               -y lab parm/dict parm/symbols
-	HERest -C htk-config -I hmmG/aligned.mlf \
+	HERest -C htk-config -I hmmG/aligned.mlf -t 250 150 1000 \
 	  -S parm/train.scr -H hmmF/macros -H hmmF/hmmdefs -M hmmG parm/symbols
+hmmH/hmmdefs: htk-config hmmG/hmmdefs parm/dict parm/symbols parm/all2.mlf
+	mkdir -p hmmH
+	HVite -C htk-config -H hmmG/macros -H hmmG/hmmdefs -S parm/train.scr \
+              -i hmmH/aligned.mlf -m -o SWT -I parm/all2.mlf \
+              -y lab parm/dict parm/symbols
+	HERest -C htk-config -I hmmH/aligned.mlf -t 250 150 1000 \
+	  -S parm/train.scr -H hmmG/macros -H hmmG/hmmdefs -M hmmH parm/symbols
+
+hmmI/hmmdefs: htk-config hmmH/hmmdefs parm/symbols
+	mkdir -p hmmI
+	HERest -C htk-config -I hmmH/aligned.mlf -s hmmI/stats \
+	  -S parm/train.scr -H hmmH/macros -H hmmH/hmmdefs -M hmmI parm/symbols
+	echo "LS hmmI/stats" > hmmI/mix.hed
+	echo "PS $(MIX) 0.2 3" >> hmmI/mix.hed
+	HHEd -C htk-config -H hmmH/macros -H hmmH/hmmdefs -M hmmI \
+	  hmmI/mix.hed parm/symbols
+hmmJ/hmmdefs: htk-config hmmI/hmmdefs parm/symbols parm/all.mlf
+	mkdir -p hmmJ
+	HERest -C htk-config -I hmmH/aligned.mlf \
+	  -S parm/train.scr -H hmmI/macros -H hmmI/hmmdefs -M hmmJ parm/symbols
+hmmK/hmmdefs: htk-config hmmJ/hmmdefs parm/dict parm/symbols parm/all2.mlf
+	mkdir -p hmmK
+	HVite -C htk-config -H hmmJ/macros -H hmmJ/hmmdefs -S parm/train.scr \
+              -i hmmK/aligned.mlf -m -o SWT -I parm/all2.mlf \
+              -y lab parm/dict parm/symbols
+	HERest -C htk-config -I hmmK/aligned.mlf -t 250 150 1000 \
+	  -S parm/train.scr -H hmmJ/macros -H hmmJ/hmmdefs -M hmmK parm/symbols
+hmmL/hmmdefs: htk-config hmmK/hmmdefs parm/dict parm/symbols parm/all2.mlf
+	mkdir -p hmmL
+	HVite -C htk-config -H hmmK/macros -H hmmK/hmmdefs -S parm/train.scr \
+              -i hmmL/aligned.mlf -m -o SWT -I parm/all2.mlf \
+              -y lab parm/dict parm/symbols
+	HERest -C htk-config -I hmmL/aligned.mlf -t 250 150 1000 \
+	  -S parm/train.scr -H hmmK/macros -H hmmK/hmmdefs -M hmmL parm/symbols
+
+hmmM/hmmdefs: htk-config hmmL/hmmdefs parm/symbols
+	mkdir -p hmmM
+	HERest -C htk-config -I hmmL/aligned.mlf -s hmmM/stats \
+	  -S parm/train.scr -H hmmL/macros -H hmmL/hmmdefs -M hmmM parm/symbols
+	echo "LS hmmM/stats" > hmmM/mix.hed
+	echo "PS $(MIX) 0.2 2" >> hmmM/mix.hed
+	HHEd -C htk-config -H hmmL/macros -H hmmL/hmmdefs -M hmmM \
+	  hmmM/mix.hed parm/symbols
+hmmN/hmmdefs: htk-config hmmM/hmmdefs parm/symbols parm/all.mlf
+	mkdir -p hmmN
+	HERest -C htk-config -I hmmL/aligned.mlf \
+	  -S parm/train.scr -H hmmM/macros -H hmmM/hmmdefs -M hmmN parm/symbols
+hmmO/hmmdefs: htk-config hmmN/hmmdefs parm/dict parm/symbols parm/all2.mlf
+	mkdir -p hmmO
+	HVite -C htk-config -H hmmN/macros -H hmmN/hmmdefs -S parm/train.scr \
+              -i hmmO/aligned.mlf -m -o SWT -I parm/all2.mlf \
+              -y lab parm/dict parm/symbols
+	HERest -C htk-config -I hmmO/aligned.mlf -t 250 150 1000 \
+	  -S parm/train.scr -H hmmN/macros -H hmmN/hmmdefs -M hmmO parm/symbols
+hmmP/hmmdefs: htk-config hmmO/hmmdefs parm/dict parm/symbols parm/all2.mlf
+	mkdir -p hmmP
+	HVite -C htk-config -H hmmO/macros -H hmmO/hmmdefs -S parm/train.scr \
+              -i hmmP/aligned.mlf -m -o SWT -I parm/all2.mlf \
+              -y lab parm/dict parm/symbols
+	HERest -C htk-config -I hmmP/aligned.mlf -t 250 150 1000 \
+	  -S parm/train.scr -H hmmO/macros -H hmmO/hmmdefs -M hmmP parm/symbols
+
+hmmQ/hmmdefs: htk-config hmmP/hmmdefs parm/symbols
+	mkdir -p hmmQ
+	HERest -C htk-config -I hmmP/aligned.mlf -s hmmQ/stats \
+	  -S parm/train.scr -H hmmP/macros -H hmmP/hmmdefs -M hmmQ parm/symbols
+	echo "LS hmmQ/stats" > hmmQ/mix.hed
+	echo "PS $(MIX) 0.2 1" >> hmmQ/mix.hed
+	HHEd -C htk-config -H hmmP/macros -H hmmP/hmmdefs -M hmmQ \
+	  hmmQ/mix.hed parm/symbols
+hmmR/hmmdefs: htk-config hmmQ/hmmdefs parm/symbols parm/all.mlf
+	mkdir -p hmmR
+	HERest -C htk-config -I hmmP/aligned.mlf \
+	  -S parm/train.scr -H hmmQ/macros -H hmmQ/hmmdefs -M hmmR parm/symbols
+hmmS/hmmdefs: htk-config hmmR/hmmdefs parm/dict parm/symbols parm/all2.mlf
+	mkdir -p hmmS
+	HVite -C htk-config -H hmmR/macros -H hmmR/hmmdefs -S parm/train.scr \
+              -i hmmS/aligned.mlf -m -o SWT -I parm/all2.mlf \
+              -y lab parm/dict parm/symbols
+	HERest -C htk-config -I hmmS/aligned.mlf -t 250 150 1000 \
+	  -S parm/train.scr -H hmmR/macros -H hmmR/hmmdefs -M hmmS parm/symbols
+hmmT/hmmdefs: htk-config hmmS/hmmdefs parm/dict parm/symbols parm/all2.mlf
+	mkdir -p hmmT
+	HVite -C htk-config -H hmmS/macros -H hmmS/hmmdefs -S parm/train.scr \
+              -i hmmT/aligned.mlf -m -o SWT -I parm/all2.mlf \
+              -y lab parm/dict parm/symbols
+	HERest -C htk-config -I hmmT/aligned.mlf -t 250 150 1000 \
+	  -S parm/train.scr -H hmmS/macros -H hmmS/hmmdefs -M hmmT parm/symbols
+
+# some extra training at this level
+hmmU/hmmdefs: htk-config hmmT/hmmdefs parm/dict parm/symbols parm/all2.mlf
+	mkdir -p hmmU
+	HVite -C htk-config -H hmmT/macros -H hmmT/hmmdefs -S parm/train.scr \
+              -i hmmU/aligned.mlf -m -o SWT -I parm/all2.mlf \
+              -y lab parm/dict parm/symbols
+	HERest -C htk-config -I hmmU/aligned.mlf -t 250 150 1000 \
+	  -S parm/train.scr -H hmmT/macros -H hmmT/hmmdefs -M hmmU parm/symbols
+hmmV/hmmdefs: htk-config hmmU/hmmdefs parm/dict parm/symbols parm/all2.mlf
+	mkdir -p hmmV
+	HVite -C htk-config -H hmmU/macros -H hmmU/hmmdefs -S parm/train.scr \
+              -i hmmV/aligned.mlf -m -o SWT -I parm/all2.mlf \
+              -y lab parm/dict parm/symbols
+	HERest -C htk-config -I hmmV/aligned.mlf -t 250 150 1000 \
+	  -S parm/train.scr -H hmmU/macros -H hmmU/hmmdefs -M hmmV parm/symbols
+hmmW/hmmdefs: htk-config hmmV/hmmdefs parm/dict parm/symbols parm/all2.mlf
+	mkdir -p hmmW
+	HVite -C htk-config -H hmmV/macros -H hmmV/hmmdefs -S parm/train.scr \
+              -i hmmW/aligned.mlf -m -o SWT -I parm/all2.mlf \
+              -y lab parm/dict parm/symbols
+	HERest -C htk-config -I hmmW/aligned.mlf -t 250 150 1000 \
+	  -S parm/train.scr -H hmmV/macros -H hmmV/hmmdefs -M hmmW parm/symbols
+hmmX/hmmdefs: htk-config hmmW/hmmdefs parm/dict parm/symbols parm/all2.mlf
+	mkdir -p hmmX
+	HVite -C htk-config -H hmmW/macros -H hmmW/hmmdefs -S parm/train.scr \
+              -i hmmX/aligned.mlf -m -o SWT -I parm/all2.mlf \
+              -y lab parm/dict parm/symbols
+	HERest -C htk-config -I hmmX/aligned.mlf -t 250 150 1000 \
+	  -S parm/train.scr -H hmmW/macros -H hmmW/hmmdefs -M hmmX parm/symbols
+
+# now make a tied mixture HMM
+hmmY/hmmdefs: htk-config hmmX/hmmdefs parm/symbols tie.hed
+	mkdir -p hmmY
+	HERest -C htk-config -I hmmX/aligned.mlf -s hmmY/stats \
+	  -S parm/train.scr -H hmmX/macros -H hmmX/hmmdefs -M hmmY parm/symbols
+	echo "LS hmmY/stats" > hmmY/mix.hed
+	cat tie.hed >> hmmY/mix.hed
+	HHEd -C htk-config -H hmmX/macros -H hmmX/hmmdefs -M hmmY \
+	  hmmY/mix.hed parm/symbols
+# and train it!
+hmmZ/hmmdefs: htk-config hmmY/hmmdefs parm/symbols parm/all.mlf
+	mkdir -p hmmZ
+	HERest -C htk-config -I hmmX/aligned.mlf \
+	  -S parm/train.scr -H hmmY/macros -H hmmY/hmmdefs -M hmmZ parm/symbols
+hmm10/hmmdefs: htk-config hmmZ/hmmdefs parm/dict parm/symbols parm/all2.mlf
+	mkdir -p hmm10
+	HVite -C htk-config -H hmmZ/macros -H hmmZ/hmmdefs -S parm/train.scr \
+              -i hmm10/aligned.mlf -m -o SWT -I parm/all2.mlf -c 30 \
+              -y lab parm/dict parm/symbols
+	HERest -C htk-config -I hmm10/aligned.mlf \
+	  -S parm/train.scr -H hmmZ/macros -H hmmZ/hmmdefs -M hmm10 parm/symbols
+hmm11/hmmdefs: htk-config hmm10/hmmdefs parm/dict parm/symbols parm/all2.mlf
+	mkdir -p hmm11
+	HVite -C htk-config -H hmm10/macros -H hmm10/hmmdefs -S parm/train.scr \
+              -i hmm11/aligned.mlf -m -o SWT -I parm/all2.mlf -c 30 \
+              -y lab parm/dict parm/symbols
+	HERest -C htk-config -I hmm11/aligned.mlf \
+	  -S parm/train.scr -H hmm10/macros -H hmm10/hmmdefs -M hmm11 parm/symbols
 
 # ta-da
 
