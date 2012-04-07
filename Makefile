@@ -33,13 +33,18 @@ html/%.html parm/%.mlf parm/%.scr parm/%-qual.scr: json/%.json read.js
 
 # helper: dump parameter file
 parm/%.out: parm/%.htk
-	HList -C htk-config -n $(NSTREAMS) -t $<
+	HList -C htk-config -n $(NSTREAMS) -t $< | tee $@
 # vector quantization whoo
 parm/%.vq: parm/%.htk
 	HCopy -C htk-config $< $@
 
 parm/train.scr: $(ALL_SCRIPT)
 	cat $(ALL_SCRIPT) > $@
+# cut down version of parm/train.scr with only those signals longer than 18
+# frames long.  This is needed to bootstrap because HInit can't deal with
+# short signals and skip states. (HERest does just fine of course.)
+parm/train-18.scr: parm/train.scr
+	( for f in $$(cat $< ) ; do if [ $$(stat --format=%s $$f) -gt 692 ] ; then echo $$f ; fi; done ) > $@
 parm/qual.scr: $(foreach l,$(SYMBOLS),parm/$(l)-qual.scr)
 	cat $^ > $@
 
@@ -139,9 +144,9 @@ codebook: treevq-e
 	if cmp -s $< $@ ; then echo $@ up to date. ; else cp $< $@ ; fi
 
 # global mean/variance computation
-hmm0/proto: htk-config proto parm/train.scr codebook
+hmm0/proto: htk-config proto parm/train-18.scr codebook
 	mkdir -p hmm0
-	HInit -C htk-config -T 1 -w 1.0 -S parm/train.scr -M hmm0 proto
+	HInit -C htk-config -T 1 -w 1.0 -S parm/train-18.scr -M hmm0 proto
 
 # create flat-start monophone models
 hmm0/macros: proto
@@ -240,7 +245,7 @@ hmm9/hmmdefs: htk-config hmm8/hmmdefs parm/dict parm/symbols parm/all2.mlf
 	  tee $@ | head -7
 
 very-clean: clean
-	$(RM) -rf html parm
+	$(RM) -rf html parm codebook
 clean:
 	$(RM) -rf hmm?
 
