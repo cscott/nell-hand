@@ -1,0 +1,8 @@
+SS 3
+JO 256 2.0
+TI st1 {*.state[2-7].stream[1].mix}
+JO 64 2.0
+TI st2 {*.state[2-7].stream[2].mix}
+JO 64 2.0
+TI st3 {*.state[2-7].stream[3].mix}
+HK TIEDHS
