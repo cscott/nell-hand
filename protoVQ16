@@ -1,0 +1,79 @@
+~o <VecSize> 30 <USER_D_A_V> <StreamInfo> 3 10 10 10
+~h "proto"
+<BeginHMM>
+ <NumStates> 16
+ <State> 2 <NumMixes> 256 64 16
+  <Stream> 1 <DProb> 13152*256
+  <Stream> 2 <DProb> 9864*64
+  <Stream> 3 <DProb> 6576*16
+ <State> 3 <NumMixes> 256 64 16
+  <Stream> 1 <DProb> 13152*256
+  <Stream> 2 <DProb> 9864*64
+  <Stream> 3 <DProb> 6576*16
+ <State> 4 <NumMixes> 256 64 16
+  <Stream> 1 <DProb> 13152*256
+  <Stream> 2 <DProb> 9864*64
+  <Stream> 3 <DProb> 6576*16
+ <State> 5 <NumMixes> 256 64 16
+  <Stream> 1 <DProb> 13152*256
+  <Stream> 2 <DProb> 9864*64
+  <Stream> 3 <DProb> 6576*16
+ <State> 6 <NumMixes> 256 64 16
+  <Stream> 1 <DProb> 13152*256
+  <Stream> 2 <DProb> 9864*64
+  <Stream> 3 <DProb> 6576*16
+ <State> 7 <NumMixes> 256 64 16
+  <Stream> 1 <DProb> 13152*256
+  <Stream> 2 <DProb> 9864*64
+  <Stream> 3 <DProb> 6576*16
+ <State> 8 <NumMixes> 256 64 16
+  <Stream> 1 <DProb> 13152*256
+  <Stream> 2 <DProb> 9864*64
+  <Stream> 3 <DProb> 6576*16
+ <State> 9 <NumMixes> 256 64 16
+  <Stream> 1 <DProb> 13152*256
+  <Stream> 2 <DProb> 9864*64
+  <Stream> 3 <DProb> 6576*16
+ <State> 10 <NumMixes> 256 64 16
+  <Stream> 1 <DProb> 13152*256
+  <Stream> 2 <DProb> 9864*64
+  <Stream> 3 <DProb> 6576*16
+ <State> 11 <NumMixes> 256 64 16
+  <Stream> 1 <DProb> 13152*256
+  <Stream> 2 <DProb> 9864*64
+  <Stream> 3 <DProb> 6576*16
+ <State> 12 <NumMixes> 256 64 16
+  <Stream> 1 <DProb> 13152*256
+  <Stream> 2 <DProb> 9864*64
+  <Stream> 3 <DProb> 6576*16
+ <State> 13 <NumMixes> 256 64 16
+  <Stream> 1 <DProb> 13152*256
+  <Stream> 2 <DProb> 9864*64
+  <Stream> 3 <DProb> 6576*16
+ <State> 14 <NumMixes> 256 64 16
+  <Stream> 1 <DProb> 13152*256
+  <Stream> 2 <DProb> 9864*64
+  <Stream> 3 <DProb> 6576*16
+ <State> 15 <NumMixes> 256 64 16
+  <Stream> 1 <DProb> 13152*256
+  <Stream> 2 <DProb> 9864*64
+  <Stream> 3 <DProb> 6576*16
+
+ <TransP> 16
+   0.0 0.8 0.2 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0
+   0.0 0.6 0.2 0.2 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0
+   0.0 0.0 0.6 0.2 0.2 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0
+   0.0 0.0 0.0 0.6 0.2 0.2 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0
+   0.0 0.0 0.0 0.0 0.6 0.2 0.2 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0
+   0.0 0.0 0.0 0.0 0.0 0.6 0.2 0.2 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0
+   0.0 0.0 0.0 0.0 0.0 0.0 0.6 0.2 0.2 0.0 0.0 0.0 0.0 0.0 0.0 0.0
+   0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.6 0.2 0.2 0.0 0.0 0.0 0.0 0.0 0.0
+   0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.6 0.2 0.2 0.0 0.0 0.0 0.0 0.0
+   0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.6 0.2 0.2 0.0 0.0 0.0 0.0
+   0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.6 0.2 0.2 0.0 0.0 0.0
+   0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.6 0.2 0.2 0.0 0.0
+   0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.6 0.2 0.2 0.0
+   0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.6 0.2 0.2
+   0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.7 0.3
+   0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0
+<EndHMM>

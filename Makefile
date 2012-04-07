@@ -115,29 +115,32 @@ gen-%: parm/wdnet% hmm0/symbols
 	HSGen $< hmm0/symbols
 
 # vector quantization
+STREAM_SIZES=-n 1 256 -n 2 64 -n 3 16
 # -e is euclidean distance, -d is diagonal covariance, -f is full covariance
 #  linear, 3 streams, 256 / 64 / 16 entries
 # (linvq-f is slowest!)
 linvq-e: htk-config parm/train.scr
 	HQuant -C htk-config -C novq-config -s $(NSTREAMS) \
-	       -n 2 64 -n 3 16 -S parm/train.scr $@
+	       $(STREAM_SIZES) -S parm/train.scr $@
 linvq-d: htk-config parm/train.scr
 	HQuant -C htk-config -C novq-config -s $(NSTREAMS) \
-	       -n 2 64 -n 3 16 -S parm/train.scr -d $@
+	       $(STREAM_SIZES) -S parm/train.scr -d $@
+# results in: "CovInvert: [0.001403 ...] not invertible"
 linvq-f: htk-config parm/train.scr
 	HQuant -C htk-config -C novq-config -s $(NSTREAMS) \
-	       -n 2 64 -n 3 16 -S parm/train.scr -f $@
+	       $(STREAM_SIZES) -S parm/train.scr -f $@
 #  tree, 3 streams, 256 / 64 / 16 entries
 # (treevq-e is fastest!)
 treevq-e: htk-config parm/train.scr
 	HQuant -C htk-config -C novq-config -s $(NSTREAMS) \
-	       -n 2 64 -n 3 16 -S parm/train.scr -t $@
+	       $(STREAM_SIZES) -S parm/train.scr -t $@
 treevq-d: htk-config parm/train.scr
 	HQuant -C htk-config -C novq-config -s $(NSTREAMS) \
-	       -n 2 64 -n 3 16 -S parm/train.scr -t -d $@
+	       $(STREAM_SIZES) -S parm/train.scr -t -d $@
+# results in: "CovInvert: [0.071793 ...] not invertible"
 treevq-f: htk-config parm/train.scr
 	HQuant -C htk-config -C novq-config -s $(NSTREAMS) \
-	       -n 2 64 -n 3 16 -S parm/train.scr -t -f $@
+	       $(STREAM_SIZES) -S parm/train.scr -t -f $@
 
 # select which codebook to use!
 codebook: treevq-e

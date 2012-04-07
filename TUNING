@@ -122,16 +122,30 @@ Eight allographs:
 ============= DISCRETE HMMs ==============
 
 
+DISCRETE: treevq-euclidean distance 64/64/16
+  8 states, 4 allographs:           93.01% [90.76%]
+DISCRETE: treevq-euclidean distance 128/64/16
+  8 states, 4 allographs:           94.14% [91.23%]
+DISCRETE: treevq-euclidean distance 128/64/64
+ 12 states, 6 allographs:           96.09% [92.25%]
 DISCRETE: treevq-euclidean distance 256/64/16
-  8 states, 2 allographs:           92.98% [90.74%] / 93.23 [90.59] (w/o -w 1)
+  8 states, 2 allographs:           92.98% [90.74%] (93.23 [90.59] w/o -w 1)
   8 states, 4 allographs:           94.70% [91.43%]
   8 states, 6 allographs:           95.55% [92.03%]
-  8 states, 8 allographs:           (nell-hand3)
+  8 states, 8 allographs:           96.00% [92.29%]
+ 12 states, 4 allographs:           95.37% [92.12%]
+ 16 states, 4 allographs:           95.93% [92.39%]
+DISCRETE: treevq-euclidean distance 256/64/64
+  8 states, 4 allographs:           95.24% [91.94%] (slightly overtrained)
+DISCRETE: treevq-euclidean distance 512/64/16
+  8 states, 4 allographs:           95.16% [91.74%]
 DISCRETE: treevq-diagonal mahalanobis distance 256/64/16
-  8 states, 2 allographs:           (nell-hand2)
+  8 states, 2 allographs:           90.48% [86.95%]
   8 states, 4 allographs:           93.70% [88.19%]
 DISCRETE: linvq-euclidean distance 256/64/16
   8 states, 2 allographs:           93.25% [91.10%]
   8 states, 4 allographs:           95.06% [92.47%]
-  8 states, 6 allographs:           (nell-hand)
-  8 states, 8 allographs:           (nell-hand4)
+  8 states, 6 allographs:           95.97% [92.94%]
+  8 states, 8 allographs:           96.23% [93.29%]
+ 12 states, 4 allographs:           95.61% [92.94%]
+ 16 states, 4 allographs:           96.08% [93.34%]
