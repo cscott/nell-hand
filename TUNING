@@ -142,6 +142,8 @@ DISCRETE: treevq-euclidean distance 512/64/16
 DISCRETE: treevq-diagonal mahalanobis distance 256/64/16
   8 states, 2 allographs:           90.48% [86.95%]
   8 states, 4 allographs:           93.70% [88.19%]
+DISCRETE: linvq-euclidean distance 128/64/64
+ 12 states, 6 allographs:           
 DISCRETE: linvq-euclidean distance 256/64/16
   8 states, 2 allographs:           93.25% [91.10%]
   8 states, 4 allographs:           95.06% [92.47%]
