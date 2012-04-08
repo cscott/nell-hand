@@ -118,3 +118,64 @@ Eight allographs:
  24 mixtures,  8 states:            98.41% [93.65%] (1 allo = 92.99% [91.43%])
   1 mixture,  12 states:            93.72% [92.25%] (1 allo = 85.18% [84.46%])
  24 mixtures, 12 states:            98.70% [93.16%] (1 allo = 95.29% [93.27%])
+
+============= DISCRETE HMMs ==============
+
+
+DISCRETE: treevq-euclidean distance 64/64/16
+  8 states, 4 allographs:           93.01% [90.76%]
+DISCRETE: treevq-euclidean distance 128/64/16
+  8 states, 4 allographs:           94.14% [91.23%]
+DISCRETE: treevq-euclidean distance 128/64/64
+ 12 states, 6 allographs:           96.09% [92.25%]
+DISCRETE: treevq-euclidean distance 256/64/16
+  8 states, 2 allographs:           92.98% [90.74%] (93.23 [90.59] w/o -w 1)
+  8 states, 4 allographs:           94.70% [91.43%]
+  8 states, 6 allographs:           95.55% [92.03%]
+  8 states, 8 allographs:           96.00% [92.29%]
+ 12 states, 4 allographs:           95.37% [92.12%]
+ 16 states, 4 allographs:           95.93% [92.39%]
+DISCRETE: treevq-euclidean distance 256/64/64
+  8 states, 4 allographs:           95.24% [91.94%] (slightly overtrained)
+DISCRETE: treevq-euclidean distance 512/64/16
+  8 states, 4 allographs:           95.16% [91.74%]
+DISCRETE: treevq-diagonal mahalanobis distance 256/64/16
+  8 states, 2 allographs:           90.48% [86.95%]
+  8 states, 4 allographs:           93.70% [88.19%]
+DISCRETE: linvq-euclidean distance 128/64/64
+ 12 states, 6 allographs:           95.96% [93.60%]
+DISCRETE: linvq-euclidean distance 256/64/16
+  8 states, 2 allographs:           93.25% [91.10%]
+  8 states, 4 allographs:           95.06% [92.47%]
+  8 states, 6 allographs:           95.97% [92.94%]
+  8 states, 8 allographs:           96.23% [93.29%]
+ 12 states, 4 allographs:           95.61% [92.94%]
+ 16 states, 4 allographs:           96.08% [93.34%]
+
+============= TIED MIXTURE HMMs: tie the 1 mixture HMM ================
+256/64/64 codebook, diagonal gaussian (2.0 floor)
+  8 states, 4 allographs:           93.09% [90.68%]
+ 12 states, 4 allographs:           96.58% [93.47%] (hmmG)
+ 16 states, 4 allographs:           97.17% [94.20%] (hmmD) (nell-hand5)
+256/128/64 codebook, diagonal gaussian (1.5 floor).
+  8 states, 4 allographs:           92.79% [90.86%] (hmmD) (hmmE-G overtrained)
+512/128/128 codebook, diagonal gaussian (2.0 floor)
+  8 states, 4 allographs:           94.01% [91.08%] (hmmD) (hmmE-G overtrained)
+ 16 states, 4 allographs:           97.40% [94.62%] (hmmE) (hmmF-G overtrained)
+
+
+
+==== TIED MIXTURES take 2: train to multiple mixtures before tying ====
+8 states, 4 allographs, trained to  9 mixtures then tied w/ diag gaussians.
+2.0 floor.
+  1 mix => 88.07% [86.50%];  9 mix => 95.24% [92.85%];
+     tied 256/ 64/ 64 => 94.31% [91.75%] (hmm11) (hmm12 overtrained)
+     tied 256/128/128 => 93.97% [92.07%] (hmm10) (hmm11-12 overtrained)
+     tied 512/ 64/ 64 => 95.18% [92.17%] (hmm11) (hmm12 overtrained)
+     tied 512/128/128 => 95.30% [92.28%]
+8 states, 4 allographs, trained to 16 mixtures then tied w/ diag gaussians.
+  1 mix => 88.07% [86.50%]; 16 mix => 96.44% [93.43%];
+     tied 256/ 64/ 64 => 93.27% [91.22%] (hmm11) (hmm12 overtrained)
+     tied 256/128/128 => 93.81% [91.68%] (hmm10) (hmm11-12 overtrained)
+     tied 512/ 64/ 64 => 94.62% [91.91%]
+     tied 512/128/128 => 95.10% [92.16%] (hmm11) (hmm12 overtrained)
