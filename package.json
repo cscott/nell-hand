@@ -15,7 +15,8 @@
     "commander": "~0.5.2",
     "progress": "~0.0.4",
     "requirejs": "1.0.x",
-    "ometa": "~0.2.2"
+    "ometa": "~0.2.2",
+    "q", "~0.8.2"
   },
   "devDependencies": {},
   "optionalDependencies": {},

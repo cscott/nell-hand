@@ -1,0 +1,10 @@
+ometa E <: Parser {
+  dig = '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9',
+  num = dig+:ds -> parseInt(ds.join(''), 10),
+  fac = fac:l '*' num:r -> (l*r)
+      | fac:l '/' num:r -> (l/r)
+      | num:n,
+    exp = exp:l '+' fac:r -> (l+r)
+      | exp:l '-' fac:r -> (l-r)
+      | fac
+}
