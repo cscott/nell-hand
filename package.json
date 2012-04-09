@@ -12,11 +12,14 @@
     "url": "git://github.com/cscott/nell-hand.git"
   },
   "dependencies": {
-    "requirejs": "1.0.x"
+    "commander": "~0.5.2",
+    "progress": "~0.0.4",
+    "requirejs": "1.0.x",
+    "ometa": "~0.2.2"
   },
   "devDependencies": {},
   "optionalDependencies": {},
   "engines": {
-    "node": "~0.7.5"
+    "node": "~0.7.7"
   },
 }

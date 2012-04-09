@@ -1,6 +1,10 @@
 #!/usr/bin/node
 // running with node 0.7.5, installed 'commander' and 'progress'
 // uses typed arrays, which landed in node 0.5.5.
+var requirejs = require('requirejs');
+
+requirejs(['commander', 'fs', 'progress', './version'],
+function(program, fs, ProgressBar, version) {
 
 var CANVAS_RESOLUTION = 100;
 var RETINA_FACTOR = 1;
@@ -9,12 +13,8 @@ var SMOOTH_N = 3, SMOOTH_ALPHA = .25;
 var RESAMPLE_INTERVAL = 1/7;//1/10;
 var RESAMPLE_HERTZ = 100; // sample rate written into parameter file
 
-var program = require('commander');
-var fs = require('fs');
-var ProgressBar = require('progress');
-
 program
-    .version('0.1')
+    .version(version)
     .usage('[options] <json input file>')
     .option('-P, --parmdir <output dir>', 'directory for parameter file output',
             null)
@@ -481,3 +481,5 @@ if (program.parmdir) {
 console.log("Min/Avg/Max # features: "+min_len+"/"+Math.round(avg_len)+"/"+max_len);
 console.log("Min feat: "+featmin);
 console.log("Max feat: "+featmax);
+
+});

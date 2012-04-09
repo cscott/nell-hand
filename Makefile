@@ -4,6 +4,8 @@ DIGITS=0 1 2 3 4 5 6 7 8 9
 
 # set aside 20% of the training data for evaluation.
 TRAINAMT=5
+# HMM topology
+TOPOLOGY=16
 # total # of mixtures
 MIX=9
 # total # of allographs to train
@@ -23,9 +25,9 @@ qual: $(foreach n,1 2 3 4 5 6 7 8 9 B C D F G H J K L N O P R S T U V W X,hmm$(n
 parms: $(ALL_PARMS)
 html: $(ALL_HTML)
 
-html/%.html parm/%.mlf parm/%.scr parm/%-qual.scr: json/%.json read.js
+html/%.html parm/%.mlf parm/%.scr parm/%-qual.scr: json/%.json unipen2htk.js
 	@mkdir -p html parm/$*
-	./read.js -T $(TRAINAMT) -H html/$*.html -A $(ALLOGRAPHS) \
+	./unipen2htk.js -T $(TRAINAMT) -H html/$*.html -A $(ALLOGRAPHS) \
 		-M parm/$*.mlf -P parm/$* -S parm/$*.scr -Q parm/$*-qual.scr \
 		$<
 
@@ -103,6 +105,10 @@ endif
 # test word network
 gen-%: parm/wdnet% hmm0/symbols
 	HSGen $< hmm0/symbols
+
+# copy appropriate topology to proto
+proto: proto$(TOPOLOGY) Makefile
+	if cmp -s $< $@ ; then echo proto up to date ; else cp $< $@ ; fi
 
 # global mean/variance computation
 hmm0/proto hmm0/vFloors: htk-config proto parm/train.scr
@@ -375,7 +381,7 @@ hmmX/hmmdefs: htk-config hmmW/hmmdefs parm/dict parm/symbols parm/all2.mlf
 very-clean: clean
 	$(RM) -rf html parm
 clean:
-	$(RM) -rf hmm?
+	$(RM) -rf hmm? hmm?? proto
 
 # prevent deletion of %/recout.mlf
 .SECONDARY:
