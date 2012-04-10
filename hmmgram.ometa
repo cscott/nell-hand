@@ -1,10 +1,163 @@
-ometa E <: Parser {
-  dig = '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9',
-  num = dig+:ds -> parseInt(ds.join(''), 10),
-  fac = fac:l '*' num:r -> (l*r)
-      | fac:l '/' num:r -> (l/r)
-      | num:n,
-    exp = exp:l '+' fac:r -> (l+r)
-      | exp:l '-' fac:r -> (l-r)
-      | fac
+var tagnames = (function() {
+    var tags = [ "BeginHMM", "NumStates", "EndHMM", "HmmSetId", "StreamInfo",
+                 "VecSize", "ProjSize", "InputXform", "ParentXform",
+                 "DiagC", "InvDiagC", "FullC", "LLTC", "XformC",
+                 "nullD", "poissonD", "gammaD", "genD",
+                 "State", "NumMixes", "SWeights", "Stream",
+                 "Mixture", "TMix", "DProb", "GConst", "Mean",
+                 "Variance", "InvCovar", "LLTCovar", "Xform",
+                 "Duration", "TransP", "MMFldMask", "Parameters", "NumClasses",
+                 "MixBase", "MeanBase", "CovBase",
+                 "Class", "BaseClass", "Node", "TNode", "XformSet",
+                 "AdaptKind", "XformKind", "NumXforms",
+                 "MLLRMean", "MLLRCov", "MLLRVar", "CMLLR", "SEMIT",
+                 "LinXform", "Offset", "BlockInfo", "Bias", "Block",
+                 "PreQual" ];
+    var t = {};
+    for (var i=0; i<tags.length; i++) {
+        t[tags[i].toLowerCase()] = tags[i];
+    }
+    return t;
+})();
+
+ometa HMM <: Parser {
+    /* scanner (token processing) */
+    tok       = spaces ( macroname | tag | number | str | special ),
+    token :tt = tok:t ?(t[0] === tt) -> t[1],
+
+    macroname     = '~' spaces letter:l -> ['~'+l, l],
+    tag       = '<' spaces tagname:t spaces '>' -> ['<'+t+'>', t],
+    tagname   = letter+:ls ?(tagnames[ls.join('').toLowerCase()])
+        -> tagnames[ls.join('').toLowerCase()],
+
+    number    = optsign:s digit+:ws ('.' digit+ | empty -> []):fs exppart:es
+        -> [#number, parseFloat(s+ws.join('')+'.'+fs.join('')+es)]
+              | optsign:s '.' digit+:fs exppart:es
+        -> [#number, parseFloat(s+'.'+fs.join('')+es)],
+    exppart   = ('e'|'E'):e optsign:s digit+:ds -> (e+s+ds.join(''))
+              | empty -> '',
+    optsign   = '+' | '-' | empty -> '',
+
+    escapeChar   = '\\' char:c
+        -> unescape('\\' + c),
+    str          = '"'  (escapeChar | ~'"'  char)*:cs '"'
+        -> [#string, cs.join('')],
+    special = ( '<' | '>' | '{' | '}' | '(' | ')' | '[' | ']' |
+                '*' | ',' | '.' | '-' ):s -> [s, s],
+
+    string       = token(#string),
+    byte         = token(#number),
+    short        = token(#number),
+    int          = token(#number),
+    float        = token(#number),
+    macro        = token(#string),
+
+    q :s      = spaces letter+:l ?( l.join('').toLowerCase() === s ) -> s,
+
+    // top level rule.
+    top = (optmacro | varmacro)* ( (hmmdef)+ |
+                      (baseClass | regTree)+ |
+                      (adaptXform | inputXform)+ ),
+
+    hmmdef = ( "~h" macro )?
+             "<BeginHMM>"
+             globalOpts?
+             "<NumStates>" short
+             state+
+             transP
+             duration?
+             "<EndHMM>",
+
+    optmacro = "~o" globalOpts,
+    globalOpts = option+,
+    option = "<HmmSetId>" string
+           | "<StreamInfo>" short+
+           | "<VecSize>" short
+           | "<ProjSize>" short
+           | "<InputXform>" inputXform
+           | "<ParentXform>" "~a" macro
+           | covkind
+           | durkind
+           | parmkind,
+
+    covkind = "<DiagC>" | "<InvDiagC>" | "<FullC>" | "<LLTC>" | "<XformC>",
+    durkind = "<nullD>" | "<poissonD>" | "<gammaD>" | "<genD>",
+
+    parmkind = "<" parmbasekind ( '_' qual )* ">",
+    qual = letter:l ?( new RegExp("^[DATENZOVCK]$","i").test(l) )
+         -> l.toUpperCase(),
+    parmbasekind = q('discrete') | q('lpc') | q('lpcepstra') |
+                   q('mfcc') | q('fbank') | q('melspec') |
+                   q('lprefc') | q('lpdelcep') | q('user'),
+
+    state     = "<State>" short stateinfo,
+    stateinfo = "~s" macro
+              | mixes? weights? stream+ duration?,
+
+    mixes     = "<NumMixes>" short+,
+    weights   = "~w" macro
+        | "<SWeights>" short vector,
+    vector    = float+,
+
+    stream    = ( "<Stream>" short )? ( mixture+ | tmixpdf | discpdf ),
+    mixture   = ( "<Mixture>" short float )? mixpdf,
+    tmixpdf   = "<TMix>" macro weightList,
+    weightList= repShort+,
+    repShort  = short ( "*" byte )?,
+    discpdf   = "<DProb>" weightList,
+
+    mixpdf    = "~m" macro | mean cov ( "<GConst>" float )?,
+    mean      = "~u" macro | "<Mean>" short vector,
+    cov       = var | inv | xform,
+    var       = "~v" macro | "<Variance>" short vector,
+    varmacro  = "~v" macro "<Variance>" short vector,
+    inv       = "~i" macro | ( "<InvCovar>" | "<LLTCovar>" ) short tmatrix,
+    xform     = "~x" macro | "<Xform>" short short matrix,
+    matrix    = float+,
+    tmatrix   = matrix,
+
+    duration  = "~d" macro | "<Duration>" short vector,
+    transP    = "~t" macro | "<TransP>" short matrix,
+
+    baseClass = "~b" macro baseopts classes,
+    baseopts  = "<MMFldMask>" string "<Parameters>" basekind "<NumClasses>" int,
+    basekind  = tagname:t ?( t==='MixBase' || t==='MeanBase' || t==='CovBase'),
+    classes   = class+,
+    class     = "<Class>" int itemlist,
+
+    itemlist  = "{" listOf(#itemSet, ',') "}",
+    itemSet   = hmmName ( "." ( q('transP') | q('state') itemstate ) )?,
+    hmmName   = ident | identList,
+    identList = "(" listOf(#ident, ',') ")",
+    ident     = ( letterOrDigit | '*' | '?' )+:ls -> ls.join(''),
+
+    itemstate = index ( "." stateComp )?,
+    index     = "[" listOf(#intRange, ',') "]",
+    intRange  = int ( "-" int )?,
+    stateComp = q('dur')
+              | q('weights')
+              | (q('stream') index ".")? q('mix') itemmix,
+    itemmix   = index ( "." ( q('mean') | q('cov') ) )?,
+
+    regTree   = "~r" macro "<BaseClass>" baseclasses node+,
+    baseclasses = "~b" macro | baseopts classes,
+    node      = "<Node>" int int int int*
+              | "<TNode>" int int int int*,
+
+    adaptXform = "~a" macro adaptOpts "<XformSet>" xformset,
+    adaptOpts = "<AdaptKind>" adaptkind "<BaseClass>" baseclasses
+               ("<ParentXform>" parentxform)?,
+    parentxform = "~a" macro | adaptOpts "<XformSet>" xformset,
+    adaptkind = q('tree') | q('base'),
+    xformset  = "<XformKind>" xformkind "<NumXforms>" int linxform*,
+    xformkind = tagname:t ?( t==='MLLRMean' || t==='MLLRCov' ||
+                             t==='MLLRVar' || t==='CMLLR' || t==='SEMIT' ),
+    linxform  = "<LinXform>" int "<VecSize>" int ( "<Offset>" xformbias )?
+                "<BlockInfo>" int int+ block+,
+    xformbias = "~y" macro | "<Bias>" short vector,
+    block     = "<Block>" int xform,
+
+    inputXform = "~j" macro | inhead inmatrix,
+    inhead    = "<MMFldMask>" string parmkind ( "<PreQual>" )?,
+    inmatrix  = "<LinXform>" "<VecSize>" int "<BlockInfo>" int int+ block+
 }
