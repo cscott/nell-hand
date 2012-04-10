@@ -20,6 +20,43 @@ var tagnames = (function() {
     return t;
 })();
 
+var omerge = function() {
+    var r = {};
+    for (var i=0; i<arguments.length; i++) {
+        var o = arguments[i];
+        for (name in o) {
+            if (o.hasOwnProperty(name)) {
+                r[name] = o[name];
+            }
+        }
+    }
+    return r;
+};
+
+var propval = function(prop, val) {
+    var r = {};
+    r[prop] = val;
+    return r;
+};
+
+var chklen = function(len, array) {
+    console.assert(array.length === len);
+    return array;
+};
+
+var sqmat = function(size, array) {
+    console.assert(array.length === size*size);
+    return { rows: size, cols: size, type: "square", entries: array };
+};
+var rectmat = function(rows, cols, array) {
+    console.assert(array.length === rows*cols);
+    return { rows: rows, cols: cols, type: "rect", entries: array };
+};
+var trimat = function(size, array) {
+    console.assert((2*array.length) === (size*size + size));
+    return { rows: size, cols: size, type: "tri", entries: array };
+};
+
 ometa HMM <: Parser {
     /* scanner (token processing) */
     tok       = spaces ( macroname | tag | number | str | special ),
@@ -28,12 +65,14 @@ ometa HMM <: Parser {
     macroname     = '~' spaces letter:l -> ['~'+l, l],
     tag       = '<' spaces tagname:t spaces '>' -> ['<'+t+'>', t],
     tagname   = letter+:ls ?(tagnames[ls.join('').toLowerCase()])
-        -> tagnames[ls.join('').toLowerCase()],
+              -> tagnames[ls.join('').toLowerCase()],
 
-    number    = optsign:s digit+:ws ('.' digit+ | empty -> []):fs exppart:es
-        -> [#number, parseFloat(s+ws.join('')+'.'+fs.join('')+es)]
-              | optsign:s '.' digit+:fs exppart:es
-        -> [#number, parseFloat(s+'.'+fs.join('')+es)],
+    number    = optsign:s numpart:np exppart:es
+              -> [#number, parseFloat(s+np+es)],
+    numpart   = digit+:ws ('.' digit+ | empty->[]):fs
+              -> (ws.join('')+'.'+fs.join(''))
+              | '.' digit+:fs
+              -> ('0.'+fs.join('')),
     exppart   = ('e'|'E'):e optsign:s digit+:ds -> (e+s+ds.join(''))
               | empty -> '',
     optsign   = '+' | '-' | empty -> '',
@@ -55,69 +94,132 @@ ometa HMM <: Parser {
     q :s      = spaces letter+:l ?( l.join('').toLowerCase() === s ) -> s,
 
     // top level rule.
-    top = (optmacro | varmacro)* ( (hmmdef)+ |
-                      (baseClass | regTree)+ |
-                      (adaptXform | inputXform)+ ),
+    top = def+:d, // was: -> omerge.apply(null, d), but that loses globals
+    def = optmacro
+        | varmacro
+        | hmmdef
+        | statemacro
+        | weightsmacro
+        | mixpdfmacro
+        | meanmacro
+        | varmacro
+        | invmacro
+        | xformmacro
+        | durationmacro
+        | transPmacro
+        | baseClass
+        | regTree
+        | adaptXform
+        | inputXform,
 
-    hmmdef = ( "~h" macro )?
+    hmmdef = ( "~h" macro | empty -> '<noname>' ):name
              "<BeginHMM>"
-             globalOpts?
-             "<NumStates>" short
-             state+
-             transP
-             duration?
-             "<EndHMM>",
+             (globalOpts | empty->{} ):g
+             "<NumStates>" short:numstates
+             state+:ss
+             transP:tp
+             (duration | empty->{}):d
+             "<EndHMM>"
+        -> propval(name,
+                   omerge({ NumStates: numstates,
+                            States: omerge.apply(null, ss) }, g, tp, d)),
 
-    optmacro = "~o" globalOpts,
-    globalOpts = option+,
-    option = "<HmmSetId>" string
-           | "<StreamInfo>" short+
-           | "<VecSize>" short
-           | "<ProjSize>" short
-           | "<InputXform>" inputXform
-           | "<ParentXform>" "~a" macro
-           | covkind
-           | durkind
-           | parmkind,
+    optmacro = "~o" globalOpts:g -> { "<global>": g },
+    globalOpts = option+:o -> omerge.apply(null, o),
+    option = "<HmmSetId>" string:s -> { HmmSetId: s }
+           | "<StreamInfo>" short+:ss -> { StreamInfo: ss }
+           | "<VecSize>" short:s -> { VecSize: s }
+           | "<ProjSize>" short:s -> { ProjSize: s }
+           | "<InputXform>" inputXform:x -> { InputXform: x }
+           | "<ParentXform>" "~a" macro:name -> { ParentXform: { macro: name } }
+           | covkind:c -> { CovKind: c }
+           | durkind:d -> { DurKind: d }
+           | parmkind:p -> { ParmKind: p },
 
     covkind = "<DiagC>" | "<InvDiagC>" | "<FullC>" | "<LLTC>" | "<XformC>",
     durkind = "<nullD>" | "<poissonD>" | "<gammaD>" | "<genD>",
 
-    parmkind = "<" parmbasekind ( '_' qual )* ">",
+    parmkind = "<" parmbasekind:pbk ( '_' qual )*:q ">"
+         -> { base: pbk, extra: q.join('') },
     qual = letter:l ?( new RegExp("^[DATENZOVCK]$","i").test(l) )
          -> l.toUpperCase(),
     parmbasekind = q('discrete') | q('lpc') | q('lpcepstra') |
                    q('mfcc') | q('fbank') | q('melspec') |
                    q('lprefc') | q('lpdelcep') | q('user'),
 
-    state     = "<State>" short stateinfo,
-    stateinfo = "~s" macro
-              | mixes? weights? stream+ duration?,
+    state     = "<State>" short:num stateinfo:si -> propval(num, si),
+    stateinfo = "~s" macro:name -> { macro: name }
+              | statedef,
+    statemacro = "~s" macro:name statedef:sd -> propval(name, sd),
+    statedef  = (mixes | empty->{}):m
+                (weights | empty->{}):w
+                stream+:ss
+                (duration | empty->{}):d
+              -> omerge(m, {Streams: omerge.apply(null, ss)}, w, d),
 
-    mixes     = "<NumMixes>" short+,
-    weights   = "~w" macro
-        | "<SWeights>" short vector,
+    mixes     = "<NumMixes>" short+:ss -> { NumMixes: ss },
+    weights   = "~w" macro:name -> { SWeights: { macro: name } }
+              | weightsdef,
+    weightsmacro = "~w" macro:name weightsdef:wd -> propval(name, wd),
+    weightsdef = "<SWeights>" short:s vector:v -> { SWeights: chklen(s, v) },
     vector    = float+,
 
-    stream    = ( "<Stream>" short )? ( mixture+ | tmixpdf | discpdf ),
-    mixture   = ( "<Mixture>" short float )? mixpdf,
-    tmixpdf   = "<TMix>" macro weightList,
+    stream    = ( "<Stream>" short | empty->1):num
+                ( mixtures | tmixpdf | discpdf ):s
+              -> propval(num, s),
+    mixtures  = mixture+:ms -> { Mixtures: omerge.apply(null, ms) },
+    mixture   = mixnumweight:mnw mixpdf:mp
+              -> propval(mnw.num, omerge({Weight: mnw.weight}, mp)),
+    mixnumweight = "<Mixture>" short:s float:f -> { num:s, weight:f }
+                   | empty -> { num:1, weight:1.0},
+    tmixpdf   = "<TMix>" macro:name weightList:wl
+              -> { TMix: { name: name, weights: wl } },
     weightList= repShort+,
-    repShort  = short ( "*" byte )?,
-    discpdf   = "<DProb>" weightList,
+    repShort  = short:s ( "*" byte | empty -> 1):r -> [s, r],
+    discpdf   = "<DProb>" weightList:wl -> { DProb: wl },
 
-    mixpdf    = "~m" macro | mean cov ( "<GConst>" float )?,
-    mean      = "~u" macro | "<Mean>" short vector,
+    mixpdf    = "~m" macro:name -> { Mix: { macro: name } }
+              | mixpdfdef:m -> { Mix: m },
+    mixpdfmacro = "~m" macro:name mixpdfdef:mpd -> propval(name, mpd),
+    mixpdfdef = mean:m cov:c ( gconst | empty->{} ):g -> omerge(m,c,g),
+    gconst    = "<GConst>" float:f -> { GConst: f },
+
+    mean      = "~u" macro:name -> { Mean: { macro: name } }
+              | meandef,
+    meanmacro = "~u" macro:name meandef:md -> propval(name, md),
+    meandef   = "<Mean>" short:len vector:v -> { Mean: chklen(len, v) },
+
     cov       = var | inv | xform,
-    var       = "~v" macro | "<Variance>" short vector,
-    varmacro  = "~v" macro "<Variance>" short vector,
-    inv       = "~i" macro | ( "<InvCovar>" | "<LLTCovar>" ) short tmatrix,
-    xform     = "~x" macro | "<Xform>" short short matrix,
+
+    var       = "~v" macro:name -> { Variance: { macro: name } }
+              | vardef,
+    vardef    = "<Variance>" short:s vector:v -> { Variance: chklen(s, v) },
+    varmacro  = "~v" macro:name vardef:vd -> propval(name, vd),
+
+    inv       = "~i" macro:name -> { Inv: { macro: name } }
+              | invdef,
+    invdef    = ( "<InvCovar>" | "<LLTCovar>" ):ty short:s tmatrix:m
+              -> { Inv: omerge({ InvCovarType: ty }, trimat(s, m)) },
+    invmacro = "~i" macro:name invdef:id -> propval(name, vd),
+
+    xform     = "~x" macro:name -> { Xform: { macro: name } }
+              | xformdef,
+    xformmacro = "~x" macro:name xformdef:xd -> propval(name, xd),
+    xformdef  = "<Xform>" short:rows short:cols matrix:m
+              -> { Xform: rectmat(rows, cols, m) },
     matrix    = float+,
     tmatrix   = matrix,
 
-    duration  = "~d" macro | "<Duration>" short vector,
-    transP    = "~t" macro | "<TransP>" short matrix,
+    duration  = "~d" macro:name -> { Duration: { macro: name } }
+              | durationdef,
+    durationmacro = "~d" macro:name durationdef:dd -> propval(name, dd),
+    durationdef = "<Duration>" short:len vector:v
+                -> { Duration: chklen(len, v) },
+
+    transP    = "~t" macro:name -> { TransP: { macro: name } }
+              | transPdef,
+    transPmacro = "~t" macro:name transPdef:td -> propval(name, td),
+    transPdef = "<TransP>" short:size matrix:m -> { TransP: sqmat(size, m) },
 
     baseClass = "~b" macro baseopts classes,
     baseopts  = "<MMFldMask>" string "<Parameters>" basekind "<NumClasses>" int,

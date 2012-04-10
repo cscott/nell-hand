@@ -14,7 +14,8 @@ requirejs(['commander', 'fs', 'parse', './version'], function(program, fs, parse
     program
         .version(version)
         .usage('[options] <hmmfile> ... <hmmfile>')
-        .option('-o <outfile>', 'Output to the specified file (default stdout)',
+        .option('-o, --output <outfile>',
+                'Output to the specified file (default stdout)',
                 null)
         .parse(process.argv);
 
@@ -22,6 +23,11 @@ requirejs(['commander', 'fs', 'parse', './version'], function(program, fs, parse
         console.error("No input.");
         return;
     }
+    var output = process.stdout;
+    if (program.output) {
+        output = fs.createWriteStream(program.output, { encoding: 'utf-8' });
+    }
+
     // concatenate all the input files
     var inputFiles = [];
     program.args.forEach(function(filename) {
@@ -33,6 +39,8 @@ requirejs(['commander', 'fs', 'parse', './version'], function(program, fs, parse
     parse.then(function(parser) {
         return parser(inputFiles, 'top'); // another promise
     }).then(function(result) {
-        console.log(result);
+        var jsonString = JSON.stringify(result);
+        output.write(jsonString);
+        if (program.output) output.end();
     }).end();
 });
