@@ -1,4 +1,4 @@
-#!/usr/bin/node
+#!/usr/bin/node --max-old-space-size=2000
 
 var requirejs = require('requirejs');
 

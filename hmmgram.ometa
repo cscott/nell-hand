@@ -20,6 +20,16 @@ var tagnames = (function() {
     return t;
 })();
 
+var toarr = function(o) {
+    var r = [];
+    for (name in o) {
+        if (o.hasOwnProperty(name)) {
+            r[name] = o[name];
+        }
+    }
+    r.shift();
+    return r;
+};
 var omerge = function() {
     var r = {};
     for (var i=0; i<arguments.length; i++) {
@@ -55,6 +65,17 @@ var rectmat = function(rows, cols, array) {
 var trimat = function(size, array) {
     console.assert((2*array.length) === (size*size + size));
     return { rows: size, cols: size, type: "tri", entries: array };
+};
+var GLOBAL = '<global>';
+var extractglobals = function() {
+    var globals = [];
+    for (var i=0; i<arguments.length; i++) {
+        var a = arguments[i];
+        if (a[GLOBAL]) {
+            globals.push(a[GLOBAL]);
+        }
+    }
+    return propval(GLOBAL, omerge.apply(null, globals));
 };
 
 ometa HMM <: Parser {
@@ -94,7 +115,9 @@ ometa HMM <: Parser {
     q :s      = spaces letter+:l ?( l.join('').toLowerCase() === s ) -> s,
 
     // top level rule.
-    top = def+:d, // was: -> omerge.apply(null, d), but that loses globals
+    top = def+:ds
+        -> omerge(omerge.apply(null, ds), extractglobals.apply(null, ds)),
+
     def = optmacro
         | varmacro
         | hmmdef
@@ -124,10 +147,10 @@ ometa HMM <: Parser {
                    omerge({ NumStates: numstates,
                             States: omerge.apply(null, ss) }, g, tp, d)),
 
-    optmacro = "~o" globalOpts:g -> { "<global>": g },
+    optmacro = "~o" globalOpts:g -> propval(GLOBAL, g),
     globalOpts = option+:o -> omerge.apply(null, o),
     option = "<HmmSetId>" string:s -> { HmmSetId: s }
-           | "<StreamInfo>" short+:ss -> { StreamInfo: ss }
+           | "<StreamInfo>" short:num short*:ss -> {StreamInfo: chklen(num, ss)}
            | "<VecSize>" short:s -> { VecSize: s }
            | "<ProjSize>" short:s -> { ProjSize: s }
            | "<InputXform>" inputXform:x -> { InputXform: x }
@@ -155,7 +178,7 @@ ometa HMM <: Parser {
                 (weights | empty->{}):w
                 stream+:ss
                 (duration | empty->{}):d
-              -> omerge(m, {Streams: omerge.apply(null, ss)}, w, d),
+              -> omerge(m, {Streams: toarr(omerge.apply(null, ss))}, w, d),
 
     mixes     = "<NumMixes>" short+:ss -> { NumMixes: ss },
     weights   = "~w" macro:name -> { SWeights: { macro: name } }
@@ -167,7 +190,7 @@ ometa HMM <: Parser {
     stream    = ( "<Stream>" short | empty->1):num
                 ( mixtures | tmixpdf | discpdf ):s
               -> propval(num, s),
-    mixtures  = mixture+:ms -> { Mixtures: omerge.apply(null, ms) },
+    mixtures  = mixture+:ms -> { Mixtures: toarr(omerge.apply(null, ms)) },
     mixture   = mixnumweight:mnw mixpdf:mp
               -> propval(mnw.num, omerge({Weight: mnw.weight}, mp)),
     mixnumweight = "<Mixture>" short:s float:f -> { num:s, weight:f }
@@ -189,18 +212,24 @@ ometa HMM <: Parser {
     meanmacro = "~u" macro:name meandef:md -> propval(name, md),
     meandef   = "<Mean>" short:len vector:v -> { Mean: chklen(len, v) },
 
-    cov       = var | inv | xform,
+    cov       = var | inv | llt | xform,
 
     var       = "~v" macro:name -> { Variance: { macro: name } }
               | vardef,
     vardef    = "<Variance>" short:s vector:v -> { Variance: chklen(s, v) },
     varmacro  = "~v" macro:name vardef:vd -> propval(name, vd),
 
-    inv       = "~i" macro:name -> { Inv: { macro: name } }
+    inv       = "~i" macro:name -> { InvCovar: { macro: name } }
               | invdef,
-    invdef    = ( "<InvCovar>" | "<LLTCovar>" ):ty short:s tmatrix:m
-              -> { Inv: omerge({ InvCovarType: ty }, trimat(s, m)) },
-    invmacro = "~i" macro:name invdef:id -> propval(name, vd),
+    invdef    = "<InvCovar>" short:s tmatrix:m
+              -> { InvCovar: trimat(s, m) },
+    invmacro = "~i" macro:name invdef:id -> propval(name, id),
+
+    llt       = "~c" macro:name -> { LLTCovar: { macro: name } }
+              | lltdef,
+    lltdef    = "<LLTCovar>" short:s tmatrix:m
+              -> { LLTCovar: trimat(s, m) },
+    lltmacro = "~c" macro:name lltdef:ld -> propval(name, ld),
 
     xform     = "~x" macro:name -> { Xform: { macro: name } }
               | xformdef,
@@ -221,28 +250,34 @@ ometa HMM <: Parser {
     transPmacro = "~t" macro:name transPdef:td -> propval(name, td),
     transPdef = "<TransP>" short:size matrix:m -> { TransP: sqmat(size, m) },
 
-    baseClass = "~b" macro baseopts classes,
-    baseopts  = "<MMFldMask>" string "<Parameters>" basekind "<NumClasses>" int,
+    baseClass = "~b" macro:name baseopts:bo classes:cs
+              -> propval(name, omerge(bo, cs)),
+    baseopts  = "<MMFldMask>" string:s
+                "<Parameters>" basekind:k
+                "<NumClasses>" int:num
+              -> { MMFldMask: s, Parameters: k, NumClasses: num },
     basekind  = tagname:t ?( t==='MixBase' || t==='MeanBase' || t==='CovBase'),
-    classes   = class+,
-    class     = "<Class>" int itemlist,
+    classes   = class+:cs -> { Classes: toarr(omerge.apply(null, cs)) },
+    class     = "<Class>" int:num itemlist:il -> propval(num, il),
 
-    itemlist  = "{" listOf(#itemSet, ',') "}",
+    itemlist  = "{" listOf(#itemSet, ','):il "}" -> il,
     itemSet   = hmmName ( "." ( q('transP') | q('state') itemstate ) )?,
-    hmmName   = ident | identList,
-    identList = "(" listOf(#ident, ',') ")",
+    hmmName   = ident:i -> [i] | identList,
+    identList = "(" listOf(#ident, ','):il ")" -> il,
     ident     = ( letterOrDigit | '*' | '?' )+:ls -> ls.join(''),
 
     itemstate = index ( "." stateComp )?,
-    index     = "[" listOf(#intRange, ',') "]",
+    index     = "[" listOf(#intRange, ','):l "]" -> l,
     intRange  = int ( "-" int )?,
     stateComp = q('dur')
               | q('weights')
               | (q('stream') index ".")? q('mix') itemmix,
     itemmix   = index ( "." ( q('mean') | q('cov') ) )?,
 
-    regTree   = "~r" macro "<BaseClass>" baseclasses node+,
-    baseclasses = "~b" macro | baseopts classes,
+    regTree   = "~r" macro:name "<BaseClass>" baseclasses node+
+              -> propval(name, { /* XXX */ }),
+    baseclasses = "~b" macro:name -> { macro: name }
+                | baseopts:bo classes:cs -> omerge(bo, cs),
     node      = "<Node>" int int int int*
               | "<TNode>" int int int int*,
 

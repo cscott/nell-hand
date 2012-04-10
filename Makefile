@@ -18,9 +18,12 @@ ALL_SCRIPT=$(foreach l,$(SYMBOLS),parm/$(l).scr)
 ALL_LABEL=$(foreach l,$(SYMBOLS),parm/$(l).mlf)
 ALL_HTML=$(foreach l,$(SYMBOLS),html/$(l).html)
 
-all: accuracy qual
+JSONOUT=$(TOPOLOGY)s$(MIX)m$(ALLOGRAPHS)a.json
+
+all: accuracy qual json
 accuracy: $(foreach n,1 2 3 4 5 6 7 8 9 B C D F G H J K L N O P R S T U V W X,hmm$(n)/accuracy.txt)
 qual: $(foreach n,1 2 3 4 5 6 7 8 9 B C D F G H J K L N O P R S T U V W X,hmm$(n)/accuracy-qual.txt)
+json: $(JSONOUT)
 
 parms: $(ALL_PARMS)
 html: $(ALL_HTML)
@@ -365,7 +368,8 @@ hmmX/hmmdefs: htk-config hmmW/hmmdefs parm/dict parm/symbols parm/all2.mlf
 	HERest -C htk-config -I hmmX/aligned.mlf -t 250 150 1000 \
 	  -S parm/train.scr -H hmmW/macros -H hmmW/hmmdefs -M hmmX parm/symbols
 # ta-da
-
+$(JSONOUT): hmmX/hmmdefs
+	./hmm2json.js -o $@ hmmX/macros hmmX/hmmdefs
 
 %/recout.mlf: %/hmmdefs parm/train.scr parm/wdnet-single parm/dict parm/symbols
 	HVite -C htk-config -H $*/macros -H $*/hmmdefs -S parm/train.scr -i $@ -t 250 150 1000 -w parm/wdnet-single parm/dict parm/symbols
