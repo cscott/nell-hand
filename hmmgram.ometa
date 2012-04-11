@@ -74,10 +74,10 @@ var mkmacro = function(type, name, value) {
 
 ometa HMM <: Parser {
     /* scanner (token processing) */
-    tok       = spaces ( macroname | tag | number | str | special ),
+    tok       = spaces ( macrotype | tag | number | str | special ),
     token :tt = tok:t ?(t[0] === tt) -> t[1],
 
-    macroname     = '~' spaces letter:l -> ['~'+l, l],
+    macrotype     = '~' spaces letter:l -> ['~'+l, l],
     tag       = '<' spaces tagname:t spaces '>' -> ['<'+t+'>', t],
     tagname   = letter+:ls ?(tagnames[ls.join('').toLowerCase()])
               -> tagnames[ls.join('').toLowerCase()],
@@ -108,12 +108,17 @@ ometa HMM <: Parser {
 
     q :s      = spaces letter+:l ?( l.join('').toLowerCase() === s ) -> s,
 
+    macrodef :ty :rule = token(ty) macro:name apply(rule):val
+                       -> mkmacro(ty, name, val),
+    macroref :ty :rule :tag = apply(rule) | token(ty) macro:name
+                       -> propval(tag, { macro: mkmacro(ty, name) } ),
+
     // top level rule.
     top = def+,
 
     def = optmacro
         | varmacro
-        | hmmdef
+        | hmmmacro
         | statemacro
         | weightsmacro
         | mixpdfmacro
@@ -126,19 +131,20 @@ ometa HMM <: Parser {
         | baseClass
         | regTree
         | adaptXform
-        | inputXform,
+        | xformbiasmacro
+        | inputXformmacro,
 
-    hmmdef = ( "~h" macro | empty -> undefined ):name
-             "<BeginHMM>"
+    hmmmacro = macrodef("~h", #hmmdef)
+             | hmmdef:val -> mkmacro("~h", undefined, val),
+    hmmdef = "<BeginHMM>"
              (globalOpts | empty->{} ):g
              "<NumStates>" short:numstates
              state+:ss
              transP:tp
              (duration | empty->{}):d
              "<EndHMM>"
-        -> mkmacro("~h", name, omerge({ NumStates: numstates,
-                                        States: omerge.apply(null, ss) },
-                                      g, tp, d)),
+           -> omerge({ NumStates: numstates,
+                       States: omerge.apply(null, ss) }, g, tp, d),
 
     optmacro = "~o" globalOpts:g -> mkmacro("~o", undefined, g),
     globalOpts = option+:o -> omerge.apply(null, o),
@@ -146,7 +152,7 @@ ometa HMM <: Parser {
            | "<StreamInfo>" short:num short*:ss -> {StreamInfo: chklen(num, ss)}
            | "<VecSize>" short:s -> { VecSize: s }
            | "<ProjSize>" short:s -> { ProjSize: s }
-           | "<InputXform>" inputXform:x -> { InputXform: x }
+           | "<InputXform>" inputXform:x -> x
            | "<ParentXform>" "~a" macro:name -> { ParentXform: { macro: mkmacro("~a", name) } }
            | covkind:c -> { CovKind: c }
            | durkind:d -> { DurKind: d }
@@ -166,7 +172,7 @@ ometa HMM <: Parser {
     state     = "<State>" short:num stateinfo:si -> propval(num, si),
     stateinfo = "~s" macro:name -> { macro: mkmacro("~s", name) }
               | statedef,
-    statemacro = "~s" macro:name statedef:sd -> mkmacro("~s", name, sd),
+    statemacro = macrodef("~s", #statedef),
     statedef  = (mixes | empty->{}):m
                 (weights | empty->{}):w
                 stream+:ss
@@ -174,9 +180,8 @@ ometa HMM <: Parser {
               -> omerge(m, {Streams: toarr(omerge.apply(null, ss))}, w, d),
 
     mixes     = "<NumMixes>" short+:ss -> { NumMixes: ss },
-    weights   = "~w" macro:name -> { SWeights: { macro: mkmacro("~w", name) } }
-              | weightsdef,
-    weightsmacro = "~w" macro:name weightsdef:wd -> mkmacro("~w", name, wd),
+    weights   = macroref("~w", #weightsdef, "SWeights"),
+    weightsmacro = macrodef("~w", #weightsdef),
     weightsdef = "<SWeights>" short:s vector:v -> { SWeights: chklen(s, v) },
     vector    = float+,
 
@@ -194,57 +199,49 @@ ometa HMM <: Parser {
     repShort  = short:s ( "*" byte | empty -> 1):r -> [s, r],
     discpdf   = "<DProb>" weightList:wl -> { DProb: wl },
 
-    mixpdf    = "~m" macro:name -> { Mix: { macro: mkmacro("~m", name) } }
-              | mixpdfdef:m -> { Mix: m },
-    mixpdfmacro = "~m" macro:name mixpdfdef:mpd -> mkmacro("~m", name, mpd),
-    mixpdfdef = mean:m cov:c ( gconst | empty->{} ):g -> omerge(m,c,g),
+    mixpdf    = macroref("~m", #mixpdfdef, "Mix"),
+    mixpdfmacro = macrodef("~m", #mixpdfdef),
+    mixpdfdef = mean:m cov:c ( gconst | empty->{} ):g -> { Mix: omerge(m,c,g) },
     gconst    = "<GConst>" float:f -> { GConst: f },
 
-    mean      = "~u" macro:name -> { Mean: { macro: mkmacro("~u", name) } }
-              | meandef,
-    meanmacro = "~u" macro:name meandef:md -> mkmacro("~u", name, md),
+    mean      = macroref("~u", #meandef, "Mean"),
+    meanmacro = macrodef("~u", #meandef),
     meandef   = "<Mean>" short:len vector:v -> { Mean: chklen(len, v) },
 
     cov       = var | inv | llt | xform,
 
-    var       = "~v" macro:name -> { Variance: { macro: mkmacro("~v", name) } }
-              | vardef,
-    varmacro  = "~v" macro:name vardef:vd -> mkmacro("~v", name, vd),
+    var       = macroref("~v", #vardef, "Variance"),
+    varmacro  = macrodef("~v", #vardef),
     vardef    = "<Variance>" short:s vector:v -> { Variance: chklen(s, v) },
 
-    inv       = "~i" macro:name -> { InvCovar: { macro: mkmacro("~i", name) } }
-              | invdef,
-    invmacro = "~i" macro:name invdef:id -> mkmacro("~i", name, id),
+    inv       = macroref("~i", #invdef, "InvCovar"),
+    invmacro  = macrodef("~i", #invdef),
     invdef    = "<InvCovar>" short:s tmatrix:m
               -> { InvCovar: trimat(s, m) },
 
-    llt       = "~c" macro:name -> { LLTCovar: { macro: mkmacro("~c", name) } }
-              | lltdef,
-    lltmacro = "~c" macro:name lltdef:ld -> mkmacro("~c", name, ld),
+    llt       = macroref("~c", #lltdef, "LLTCovar"),
+    lltmacro  = macrodef("~c", #lltdef),
     lltdef    = "<LLTCovar>" short:s tmatrix:m
               -> { LLTCovar: trimat(s, m) },
 
-    xform     = "~x" macro:name -> { Xform: { macro: mkmacro("~x", name) } }
-              | xformdef,
-    xformmacro = "~x" macro:name xformdef:val -> mkmacro("~x", name, val),
+    xform     = macroref("~x", #xformdef, "Xform"),
+    xformmacro = macrodef("~x",#xformdef),
     xformdef  = "<Xform>" short:rows short:cols matrix:m
               -> { Xform: rectmat(rows, cols, m) },
     matrix    = float+,
     tmatrix   = matrix,
 
-    duration  = "~d" macro:name -> { Duration: { macro: mkmacro("~d", name) } }
-              | durationdef,
-    durationmacro = "~d" macro:name durationdef:val -> mkmacro("~d", name, val),
+    duration  = macroref("~d", #durationdef, "Duration"),
+    durationmacro = macrodef("~d", #durationdef),
     durationdef = "<Duration>" short:len vector:v
                 -> { Duration: chklen(len, v) },
 
-    transP    = "~t" macro:name -> { TransP: { macro: mkmacro("~t", name) } }
-              | transPdef,
-    transPmacro = "~t" macro:name transPdef:td -> mkmacro("~t", name, td),
+    transP    = macroref("~t", #transPdef, "TransP"),
+    transPmacro = macrodef("~t", #transPdef),
     transPdef = "<TransP>" short:size matrix:m -> { TransP: sqmat(size, m) },
 
-    baseClass = "~b" macro:name baseopts:bo classes:cs
-              -> mkmacro("~b", name, omerge(bo, cs)),
+    baseClass = macrodef("~b", #baseclassdef),
+    baseclassdef = baseopts:bo classes:cs -> omerge(bo, cs),
     baseopts  = "<MMFldMask>" string:s
                 "<Parameters>" basekind:k
                 "<NumClasses>" int:num
@@ -267,28 +264,32 @@ ometa HMM <: Parser {
               | (q('stream') index ".")? q('mix') itemmix,
     itemmix   = index ( "." ( q('mean') | q('cov') ) )?,
 
-    regTree   = "~r" macro:name "<BaseClass>" baseclasses node+
-              -> mkmacro("~r", name, { /* XXX */ }),
+    regTree   = macrodef("~r", #regTreedef),
+    regTreedef = "<BaseClass>" baseclasses node+ -> { /* XXX */ },
     baseclasses = "~b" macro:name -> { macro: mkmacro("~b", name) }
-                | baseopts:bo classes:cs -> omerge(bo, cs),
+                | baseclassdef,
     node      = "<Node>" int int int int*
               | "<TNode>" int int int int*,
 
-    adaptXform = "~a" macro:name adaptOpts "<XformSet>" xformset
-               -> mkmacro("~a", name, { /* XXX */ }),
+    adaptXform = macrodef("~a", #adaptXformdef),
+    adaptXformdef = adaptOpts "<XformSet>" xformset -> { /* XXX */ },
     adaptOpts = "<AdaptKind>" adaptkind "<BaseClass>" baseclasses
                ("<ParentXform>" parentxform)?,
-    parentxform = "~a" macro | adaptOpts "<XformSet>" xformset,
+    parentxform = "~a" macro | adaptXformdef,
     adaptkind = q('tree') | q('base'),
     xformset  = "<XformKind>" xformkind "<NumXforms>" int linxform*,
     xformkind = tagname:t ?( t==='MLLRMean' || t==='MLLRCov' ||
                              t==='MLLRVar' || t==='CMLLR' || t==='SEMIT' ),
     linxform  = "<LinXform>" int "<VecSize>" int ( "<Offset>" xformbias )?
                 "<BlockInfo>" int int+ block+,
-    xformbias = "~y" macro | "<Bias>" short vector,
+    xformbias = macroref("~y", #xformbiasdef, "Bias"),
+    xformbiasmacro = macrodef("~y", #xformbiasdef),
+    xformbiasdef = "<Bias>" short:len vector:v -> { Bias: chklen(len, v) },
     block     = "<Block>" int xform,
 
-    inputXform = "~j" macro | inhead inmatrix,
+    inputXform = macroref("~j", #inputXformdef, "InputXform"),
+    inputXformmacro = macrodef("~j", #inputXformdef),
+    inputXformdef = inhead inmatrix -> { InputXform: {/* XXX */} },
     inhead    = "<MMFldMask>" string parmkind ( "<PreQual>" )?,
     inmatrix  = "<LinXform>" "<VecSize>" int "<BlockInfo>" int int+ block+
 }
