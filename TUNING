@@ -79,13 +79,14 @@ Same features, experimenting with alternate topologies:
 
 Two allographs:
   1 mixture,   8 states:            84.84% [84.33%] (1 allo = 81.29% [80.06%])
+* 9 mixtures,  8 states:            92.62% [91.78%] (1 allo = 89.90% [89.19%]) (hmmT, hmmU-X overt'ed)
  24 mixtures,  8 states:            95.60% [93.16%] (1 allo = 92.99% [91.43%])
   1 mixture,  12 states:            87.90% [87.61%] (1 allo = 85.18% [84.46%])
   9 mixtures, 12 states:            94.67% [92.67%] (1 allo = 92.15% [90.87%])
  16 mixtures, 12 states:            96.02% [93.32%] (1 allo = 94.05% [92.54%])
  24 mixtures, 12 states:            96.98% [93.89%] (1 allo = 95.29% [93.27%])
   1 mixture,  16 states:            88.40% [88.05%] (1 allo = 85.77% [84.44%])
-  9 mixtures, 16 states:            95.54% [93.45%] (1 allo = 94.17%         )
+* 9 mixtures, 16 states:            95.54% [93.45%] (1 allo = 94.17%         )
  16 mixtures, 16 states:            96.74% [94.18%] (1 allo = 95.40% [93.45%])
  24 mixtures, 16 states:            97.49% [94.36%] (1 allo = 96.06% [94.00%])
 
@@ -129,7 +130,7 @@ DISCRETE: treevq-euclidean distance 128/64/16
 DISCRETE: treevq-euclidean distance 128/64/64
  12 states, 6 allographs:           96.09% [92.25%]
 DISCRETE: treevq-euclidean distance 256/64/16
-  8 states, 2 allographs:           92.98% [90.74%] (93.23 [90.59] w/o -w 1)
+* 8 states, 2 allographs:           92.98% [90.74%] (93.23 [90.59] w/o -w 1)
   8 states, 4 allographs:           94.70% [91.43%]
   8 states, 6 allographs:           95.55% [92.03%]
   8 states, 8 allographs:           96.00% [92.29%]
@@ -166,8 +167,10 @@ DISCRETE: linvq-euclidean distance 256/64/16
 
 
 ==== TIED MIXTURES take 2: train to multiple mixtures before tying ====
-8 states, 4 allographs, trained to  9 mixtures then tied w/ diag gaussians.
-2.0 floor.
+8 states, 2 allographs, trained to  5 mixtures then tied w/ diag gaussians. 2.0 floor.
+  1 mix => 84.84% [84.33%];  5 mix => 91.46% [90.47%];
+*    tied 256/128/128 => 92.33% [91.03%] (hmm11) (hmm12 overtrained)
+8 states, 4 allographs, trained to  9 mixtures then tied w/ diag gaussians. 2.0 floor.
   1 mix => 88.07% [86.50%];  9 mix => 95.24% [92.85%];
      tied 256/ 64/ 64 => 94.31% [91.75%] (hmm11) (hmm12 overtrained)
      tied 256/128/128 => 93.97% [92.07%] (hmm10) (hmm11-12 overtrained)
