@@ -4,10 +4,12 @@ DIGITS=0 1 2 3 4 5 6 7 8 9
 
 # set aside 20% of the training data for evaluation.
 TRAINAMT=5
+# HMM topology
+TOPOLOGY=8
 # total # of mixtures
-MIX=16
+MIX=5
 # total # of allographs to train
-ALLOGRAPHS=4
+ALLOGRAPHS=2
 
 #SYMBOLS=$(UPPER_LETTERS) $(LOWER_LETTERS) $(DIGITS)
 SYMBOLS=$(UPPER_LETTERS)
@@ -103,6 +105,10 @@ endif
 # test word network
 gen-%: parm/wdnet% hmm0/symbols
 	HSGen $< hmm0/symbols
+
+# copy appropriate topology to proto
+proto: proto$(TOPOLOGY) Makefile
+	if cmp -s $< $@ ; then echo proto up to date ; else cp $< $@ ; fi
 
 # global mean/variance computation
 hmm0/proto hmm0/vFloors: htk-config proto parm/train.scr
