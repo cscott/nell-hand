@@ -30,6 +30,7 @@ var toarr = function(o) {
     r.shift();
     return r;
 };
+
 var omerge = function() {
     var r = {};
     for (var i=0; i<arguments.length; i++) {
@@ -66,16 +67,9 @@ var trimat = function(size, array) {
     console.assert((2*array.length) === (size*size + size));
     return { rows: size, cols: size, type: "tri", entries: array };
 };
-var GLOBAL = '<global>';
-var extractglobals = function() {
-    var globals = [];
-    for (var i=0; i<arguments.length; i++) {
-        var a = arguments[i];
-        if (a[GLOBAL]) {
-            globals.push(a[GLOBAL]);
-        }
-    }
-    return propval(GLOBAL, omerge.apply(null, globals));
+
+var mkmacro = function(type, name, value) {
+    return { type: type, name: name, value: value };
 };
 
 ometa HMM <: Parser {
@@ -115,8 +109,7 @@ ometa HMM <: Parser {
     q :s      = spaces letter+:l ?( l.join('').toLowerCase() === s ) -> s,
 
     // top level rule.
-    top = def+:ds
-        -> omerge(omerge.apply(null, ds), extractglobals.apply(null, ds)),
+    top = def+,
 
     def = optmacro
         | varmacro
@@ -135,7 +128,7 @@ ometa HMM <: Parser {
         | adaptXform
         | inputXform,
 
-    hmmdef = ( "~h" macro | empty -> '<noname>' ):name
+    hmmdef = ( "~h" macro | empty -> undefined ):name
              "<BeginHMM>"
              (globalOpts | empty->{} ):g
              "<NumStates>" short:numstates
@@ -143,18 +136,18 @@ ometa HMM <: Parser {
              transP:tp
              (duration | empty->{}):d
              "<EndHMM>"
-        -> propval(name,
-                   omerge({ NumStates: numstates,
-                            States: omerge.apply(null, ss) }, g, tp, d)),
+        -> mkmacro("~h", name, omerge({ NumStates: numstates,
+                                        States: omerge.apply(null, ss) },
+                                      g, tp, d)),
 
-    optmacro = "~o" globalOpts:g -> propval(GLOBAL, g),
+    optmacro = "~o" globalOpts:g -> mkmacro("~o", undefined, g),
     globalOpts = option+:o -> omerge.apply(null, o),
     option = "<HmmSetId>" string:s -> { HmmSetId: s }
            | "<StreamInfo>" short:num short*:ss -> {StreamInfo: chklen(num, ss)}
            | "<VecSize>" short:s -> { VecSize: s }
            | "<ProjSize>" short:s -> { ProjSize: s }
            | "<InputXform>" inputXform:x -> { InputXform: x }
-           | "<ParentXform>" "~a" macro:name -> { ParentXform: { macro: name } }
+           | "<ParentXform>" "~a" macro:name -> { ParentXform: { macro: mkmacro("~a", name) } }
            | covkind:c -> { CovKind: c }
            | durkind:d -> { DurKind: d }
            | parmkind:p -> { ParmKind: p },
@@ -171,9 +164,9 @@ ometa HMM <: Parser {
                    q('lprefc') | q('lpdelcep') | q('user'),
 
     state     = "<State>" short:num stateinfo:si -> propval(num, si),
-    stateinfo = "~s" macro:name -> { macro: name }
+    stateinfo = "~s" macro:name -> { macro: mkmacro("~s", name) }
               | statedef,
-    statemacro = "~s" macro:name statedef:sd -> propval(name, sd),
+    statemacro = "~s" macro:name statedef:sd -> mkmacro("~s", name, sd),
     statedef  = (mixes | empty->{}):m
                 (weights | empty->{}):w
                 stream+:ss
@@ -181,9 +174,9 @@ ometa HMM <: Parser {
               -> omerge(m, {Streams: toarr(omerge.apply(null, ss))}, w, d),
 
     mixes     = "<NumMixes>" short+:ss -> { NumMixes: ss },
-    weights   = "~w" macro:name -> { SWeights: { macro: name } }
+    weights   = "~w" macro:name -> { SWeights: { macro: mkmacro("~w", name) } }
               | weightsdef,
-    weightsmacro = "~w" macro:name weightsdef:wd -> propval(name, wd),
+    weightsmacro = "~w" macro:name weightsdef:wd -> mkmacro("~w", name, wd),
     weightsdef = "<SWeights>" short:s vector:v -> { SWeights: chklen(s, v) },
     vector    = float+,
 
@@ -201,57 +194,57 @@ ometa HMM <: Parser {
     repShort  = short:s ( "*" byte | empty -> 1):r -> [s, r],
     discpdf   = "<DProb>" weightList:wl -> { DProb: wl },
 
-    mixpdf    = "~m" macro:name -> { Mix: { macro: name } }
+    mixpdf    = "~m" macro:name -> { Mix: { macro: mkmacro("~m", name) } }
               | mixpdfdef:m -> { Mix: m },
-    mixpdfmacro = "~m" macro:name mixpdfdef:mpd -> propval(name, mpd),
+    mixpdfmacro = "~m" macro:name mixpdfdef:mpd -> mkmacro("~m", name, mpd),
     mixpdfdef = mean:m cov:c ( gconst | empty->{} ):g -> omerge(m,c,g),
     gconst    = "<GConst>" float:f -> { GConst: f },
 
-    mean      = "~u" macro:name -> { Mean: { macro: name } }
+    mean      = "~u" macro:name -> { Mean: { macro: mkmacro("~u", name) } }
               | meandef,
-    meanmacro = "~u" macro:name meandef:md -> propval(name, md),
+    meanmacro = "~u" macro:name meandef:md -> mkmacro("~u", name, md),
     meandef   = "<Mean>" short:len vector:v -> { Mean: chklen(len, v) },
 
     cov       = var | inv | llt | xform,
 
-    var       = "~v" macro:name -> { Variance: { macro: name } }
+    var       = "~v" macro:name -> { Variance: { macro: mkmacro("~v", name) } }
               | vardef,
+    varmacro  = "~v" macro:name vardef:vd -> mkmacro("~v", name, vd),
     vardef    = "<Variance>" short:s vector:v -> { Variance: chklen(s, v) },
-    varmacro  = "~v" macro:name vardef:vd -> propval(name, vd),
 
-    inv       = "~i" macro:name -> { InvCovar: { macro: name } }
+    inv       = "~i" macro:name -> { InvCovar: { macro: mkmacro("~i", name) } }
               | invdef,
+    invmacro = "~i" macro:name invdef:id -> mkmacro("~i", name, id),
     invdef    = "<InvCovar>" short:s tmatrix:m
               -> { InvCovar: trimat(s, m) },
-    invmacro = "~i" macro:name invdef:id -> propval(name, id),
 
-    llt       = "~c" macro:name -> { LLTCovar: { macro: name } }
+    llt       = "~c" macro:name -> { LLTCovar: { macro: mkmacro("~c", name) } }
               | lltdef,
+    lltmacro = "~c" macro:name lltdef:ld -> mkmacro("~c", name, ld),
     lltdef    = "<LLTCovar>" short:s tmatrix:m
               -> { LLTCovar: trimat(s, m) },
-    lltmacro = "~c" macro:name lltdef:ld -> propval(name, ld),
 
-    xform     = "~x" macro:name -> { Xform: { macro: name } }
+    xform     = "~x" macro:name -> { Xform: { macro: mkmacro("~x", name) } }
               | xformdef,
-    xformmacro = "~x" macro:name xformdef:xd -> propval(name, xd),
+    xformmacro = "~x" macro:name xformdef:val -> mkmacro("~x", name, val),
     xformdef  = "<Xform>" short:rows short:cols matrix:m
               -> { Xform: rectmat(rows, cols, m) },
     matrix    = float+,
     tmatrix   = matrix,
 
-    duration  = "~d" macro:name -> { Duration: { macro: name } }
+    duration  = "~d" macro:name -> { Duration: { macro: mkmacro("~d", name) } }
               | durationdef,
-    durationmacro = "~d" macro:name durationdef:dd -> propval(name, dd),
+    durationmacro = "~d" macro:name durationdef:val -> mkmacro("~d", name, val),
     durationdef = "<Duration>" short:len vector:v
                 -> { Duration: chklen(len, v) },
 
-    transP    = "~t" macro:name -> { TransP: { macro: name } }
+    transP    = "~t" macro:name -> { TransP: { macro: mkmacro("~t", name) } }
               | transPdef,
-    transPmacro = "~t" macro:name transPdef:td -> propval(name, td),
+    transPmacro = "~t" macro:name transPdef:td -> mkmacro("~t", name, td),
     transPdef = "<TransP>" short:size matrix:m -> { TransP: sqmat(size, m) },
 
     baseClass = "~b" macro:name baseopts:bo classes:cs
-              -> propval(name, omerge(bo, cs)),
+              -> mkmacro("~b", name, omerge(bo, cs)),
     baseopts  = "<MMFldMask>" string:s
                 "<Parameters>" basekind:k
                 "<NumClasses>" int:num
@@ -275,13 +268,14 @@ ometa HMM <: Parser {
     itemmix   = index ( "." ( q('mean') | q('cov') ) )?,
 
     regTree   = "~r" macro:name "<BaseClass>" baseclasses node+
-              -> propval(name, { /* XXX */ }),
-    baseclasses = "~b" macro:name -> { macro: name }
+              -> mkmacro("~r", name, { /* XXX */ }),
+    baseclasses = "~b" macro:name -> { macro: mkmacro("~b", name) }
                 | baseopts:bo classes:cs -> omerge(bo, cs),
     node      = "<Node>" int int int int*
               | "<TNode>" int int int int*,
 
-    adaptXform = "~a" macro adaptOpts "<XformSet>" xformset,
+    adaptXform = "~a" macro:name adaptOpts "<XformSet>" xformset
+               -> mkmacro("~a", name, { /* XXX */ }),
     adaptOpts = "<AdaptKind>" adaptkind "<BaseClass>" baseclasses
                ("<ParentXform>" parentxform)?,
     parentxform = "~a" macro | adaptOpts "<XformSet>" xformset,
