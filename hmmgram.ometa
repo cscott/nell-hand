@@ -7,10 +7,8 @@ var tagnames = (function() {
                  "Mixture", "TMix", "DProb", "GConst", "Mean",
                  "Variance", "InvCovar", "LLTCovar", "Xform",
                  "Duration", "TransP", "MMFldMask", "Parameters", "NumClasses",
-                 "MixBase", "MeanBase", "CovBase",
                  "Class", "BaseClass", "Node", "TNode", "XformSet",
                  "AdaptKind", "XformKind", "NumXforms",
-                 "MLLRMean", "MLLRCov", "MLLRVar", "CMLLR", "SEMIT",
                  "LinXform", "Offset", "BlockInfo", "Bias", "Block",
                  "PreQual" ];
     var t = {};
@@ -83,13 +81,15 @@ ometa HMM <: Parser {
               -> tagnames[ls.join('').toLowerCase()],
 
     number    = optsign:s numpart:np exppart:es
-              -> [#number, parseFloat(s+np+es)],
-    numpart   = digit+:ws ('.' digit+ | empty->[]):fs
+              -> [#number, parseFloat(s+np+es)]
+              | optsign:s 'i' 'n' 'f'
+              -> [#number, (s==='-')?-Infinity:Infinity],
+    numpart   = digit+:ws ('.' digit+ | ~'.'->[]):fs ~digit
               -> (ws.join('')+'.'+fs.join(''))
-              | '.' digit+:fs
+              | '.' digit+:fs ~digit
               -> ('0.'+fs.join('')),
-    exppart   = ('e'|'E'):e optsign:s digit+:ds -> (e+s+ds.join(''))
-              | empty -> '',
+    exppart   = ('e'|'E'):e optsign:s digit+:ds ~digit -> (e+s+ds.join(''))
+              | ~('e'|'E') -> '',
     optsign   = '+' | '-' | empty -> '',
 
     escapeChar   = '\\' char:c
@@ -114,7 +114,7 @@ ometa HMM <: Parser {
                        -> propval(tag, { macro: mkmacro(ty, name) } ),
 
     // top level rule.
-    top = def+,
+    top = def+:ds spaces end -> ds,
 
     def = optmacro
         | varmacro
@@ -246,7 +246,7 @@ ometa HMM <: Parser {
                 "<Parameters>" basekind:k
                 "<NumClasses>" int:num
               -> { MMFldMask: s, Parameters: k, NumClasses: num },
-    basekind  = tagname:t ?( t==='MixBase' || t==='MeanBase' || t==='CovBase'),
+    basekind  = q('MixBase') | q('MeanBase') | q('CovBase'),
     classes   = class+:cs -> { Classes: toarr(omerge.apply(null, cs)) },
     class     = "<Class>" int:num itemlist:il -> propval(num, il),
 
@@ -277,19 +277,64 @@ ometa HMM <: Parser {
                ("<ParentXform>" parentxform)?,
     parentxform = "~a" macro | adaptXformdef,
     adaptkind = q('tree') | q('base'),
-    xformset  = "<XformKind>" xformkind "<NumXforms>" int linxform*,
-    xformkind = tagname:t ?( t==='MLLRMean' || t==='MLLRCov' ||
-                             t==='MLLRVar' || t==='CMLLR' || t==='SEMIT' ),
-    linxform  = "<LinXform>" int "<VecSize>" int ( "<Offset>" xformbias )?
-                "<BlockInfo>" int int+ block+,
+    xformset  = "<XformKind>" xformkind:k "<NumXforms>" int:n linxform*:ls
+              -> { XformKind: k, NumXforms: n,
+                   Xforms: toarr(omerge.apply(null, ls)) },
+    xformkind = q('MLLRMean') | q('MLLRCov') | q('MLLRVar') | q('CMLLR')
+              | q('SEMIT'),
+    linxform  = "<LinXform>" int:num "<VecSize>" int:vs
+                optoffset:off blockdefs:bds
+              -> propval(num, { LinXform: omerge({VecSize:vs}, off, bds) }),
+    optoffset = "<Offset>" xformbias:b -> { Offset: b }
+              | empty -> {},
+    blockdefs = "<BlockInfo>" int:len int+:bi block+:bs
+              -> { BlockInfo: chklen(len, bi),
+                   Blocks: toarr(omerge.apply(null, bs)) },
+
     xformbias = macroref("~y", #xformbiasdef, "Bias"),
     xformbiasmacro = macrodef("~y", #xformbiasdef),
     xformbiasdef = "<Bias>" short:len vector:v -> { Bias: chklen(len, v) },
-    block     = "<Block>" int xform,
+    block     = "<Block>" int:num xform:x -> propval(num, x),
 
     inputXform = macroref("~j", #inputXformdef, "InputXform"),
     inputXformmacro = macrodef("~j", #inputXformdef),
-    inputXformdef = inhead inmatrix -> { InputXform: {/* XXX */} },
-    inhead    = "<MMFldMask>" string parmkind ( "<PreQual>" )?,
-    inmatrix  = "<LinXform>" "<VecSize>" int "<BlockInfo>" int int+ block+
+    inputXformdef = inhead:h inmatrix:m -> { InputXform: omerge(h, m) },
+    inhead    = "<MMFldMask>" string:s parmkind:p prequal:pq
+              -> omerge({ MMFldMask:s, ParmKind: p }, pq),
+    prequal   = "<PreQual>" -> { PreQual: true }
+              | empty       -> { PreQual: false },
+    inmatrix  = "<LinXform>" "<VecSize>" int:vs blockdefs:bds
+        -> { LinXform: omerge({ VecSize: vs }, bds) },
+
+    // this grammar can also be used to parse VQ codebooks.
+    codebook  = c_header:h c_nodeentries(h):ns spaces end
+              -> omerge(h, { Nodes: ns }),
+    c_header  = int:magic short:type short:covkind int:numNodes
+                int:numStreams nitems(numStreams, #int):widths
+              -> { Magic: magic,
+                   Type: type ? "tree" : "linear",
+                   CovKind: ((covkind===1)?"diagonal":
+                             (covkind===2)?"full":
+                             (covkind===5)?"euclidean":"other"),
+                   Streams:  chklen(numStreams, widths),
+                   NumNodes: numNodes },
+    c_nodeentries :h = c_nodeentry(h.Streams, h.CovKind)*,
+    c_nodeentry :sw :ck =
+        short:stream int:vqidx int:nodeid int:leftid int:rightid
+        c_meanvector(sw[stream-1]):mean
+        c_cov(sw[stream-1], ck):cov
+        -> omerge({ Stream: stream, VQ: vqidx,
+                    Id:nodeid, LeftId:leftid, RightId:rightid,
+                    Mean:mean }, cov),
+    c_meanvector :len = nitems(len, #float),
+    c_cov :len :ck = empty ?( ck==="euclidean" ) -> {}
+                   | nitems(len, #float):v ?( ck==="diagonal" ) -> { InvVar: v }
+                   | nitems(len*len, #float):m ?(ck==="full") -> { InvCovar: m }
+                   | ~true,
+
+    // useful rule!
+    nitems :len :rule = empty ?( len === 0 )
+                        -> []
+                      | nitems(len-1, rule):l apply(rule):item
+                        -> { l.push(item); l }
 }

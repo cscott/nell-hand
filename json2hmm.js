@@ -7,6 +7,9 @@ requirejs(['commander', 'fs', './version'], function(program, fs, version) {
     program
         .version(version)
         .usage('[options] <json file>')
+        .option('-c, --codebook <cbfile>',
+                'Output the VQ codebook to the specified file',
+                null)
         .option('-o, --output <outfile>',
                 'Output to the specified file (default stdout)',
                 null)
@@ -32,10 +35,10 @@ requirejs(['commander', 'fs', './version'], function(program, fs, version) {
 
     var input = JSON.parse(fs.readFileSync(program.args[0], 'utf-8'));
     var checkMacro;
-    var emitMacro, emitMacroRef, emitState, emitTransP, emitDuration;
+    var emitMacro, emitState, emitTransP, emitDuration;
     var emitStream, emitWeightList, emitMixture, emitMixPDF, emitMean, emitCov;
-    var emitVariance, emitInvCovar, emitLLTCovar, emitXform;
-    var emitMatrix;
+    var emitVariance, emitInvCovar, emitLLTCovar, emitXform, emitInputXform;
+    var emitMatrix, emitParmKind;
 
     checkMacro = function(o) {
         if (!o.macro) return false;
@@ -50,9 +53,12 @@ requirejs(['commander', 'fs', './version'], function(program, fs, version) {
             firstline += ' ' + string(m.name);
         }
         if (m.type === '~h' && !m.name) {
-            firstline = '';
+            firstline = null;
         }
-        p(firstline);
+        if (m.type === '<codebook>') {
+            firstline = null;
+        }
+        if (firstline) p(firstline);
         // dispatch to the appropriate emit function
         emitMacro[m.type](m.value);
     };
@@ -84,15 +90,15 @@ requirejs(['commander', 'fs', './version'], function(program, fs, version) {
             p('<'+global.DurKind+'>');
         }
         if (global.ParmKind) {
-            var pks = (function(pk) {
-                var s = pk.base;
-                for (var i=0; i<pk.extra.length; i++) {
-                    s += '_' + pk.extra[i];
-                }
-                return s.toUpperCase();
-            })(global.ParmKind);
-            p('<'+pks+'>');
+            emitParmKind(global.ParmKind);
         }
+    };
+    emitParmKind = function(pk) {
+        var s = pk.base;
+        for (var i=0; i<pk.extra.length; i++) {
+            s += '_' + pk.extra[i];
+        }
+        p('<'+s.toUpperCase()+'>');
     };
     emitMacro["~h"] = function(h) {
         p('<BeginHMM>');
@@ -116,7 +122,8 @@ requirejs(['commander', 'fs', './version'], function(program, fs, version) {
         }
         if (checkMacro(state)) return;
         if (state.NumMixes) {
-            p('<NumMixes> '+state.NumMixes);
+            p('<NumMixes> '+state.NumMixes
+              .map(function(n){return ''+n;}).join(' '));
         }
         if (state.SWeights) {
             p('<SWeights> '+array(state.SWeights));
@@ -215,6 +222,37 @@ requirejs(['commander', 'fs', './version'], function(program, fs, version) {
         p('<Xform>');
         emitMatrix(x);
     };
+    emitMacro['~j'] = function(m) { emitInputXform(m.InputXform); };
+    emitInputXform = function(i) {
+        if (checkMacro(i)) return;
+        p('<MMFldMask> '+string(i.MMFldMask));
+        emitParmKind(i.ParmKind);
+        if (i.PreQual) p('<PreQual>');
+        emitLinXform(-1, i.LinXform);
+    };
+    emitLinXform = function(n, x) {
+        p('<LinXform>');
+        if (n>0) p(n);
+        p('  <VecSize> '+x.VecSize);
+        if (x.Offset) emitXformbias(x.Offset);
+        p('  <BlockInfo> '+array(x.BlockInfo));
+        for (var i=0; i<x.Blocks.length; i++)
+            emitBlock(i+1, x.Blocks[i]);
+    };
+    emitMacro['~y'] = function(m) { emitXformbias(m.Bias); };
+    emitXformbias = function(b) {
+        if (checkMacro(b)) return;
+        p('<Bias> '+array(b));
+    };
+    emitBlock = function(n, b) {
+        p('<Block> '+n);
+        emitXform(b.Xform);
+    };
+    emitMacro['~x'] = function(m) { emitXform(m.Xform); };
+    emitXform = function(x) {
+        p('<Xform>');
+        emitMatrix(x);
+    };
 
     emitMatrix = function(m) {
         p(m.rows);
@@ -231,6 +269,45 @@ requirejs(['commander', 'fs', './version'], function(program, fs, version) {
             }
             p(line.join(' '));
         }
+    };
+
+    // code book support.
+    emitMacro['<codebook>'] = function(cb) {
+        if (!program.codebook) return;
+        var c = fs.createWriteStream(program.codebook, { encoding: 'utf-8' });
+        c.write(cb.Magic+' ');
+        switch (cb.Type) {
+        case 'tree': c.write('1 '); break;
+        case 'linear': c.write('0 '); break;
+        default: c.write('-1 '); break; // UNKNOWN
+        }
+        switch (cb.CovKind) {
+        case 'diagonal': c.write('1 '); break;
+        case 'full': c.write('2 '); break;
+        case 'euclidean': c.write('5 '); break;
+        default: c.write('-1 '); break; // UNKNOWN
+        }
+        c.write(cb.NumNodes+' ');
+        c.write(array(cb.Streams));
+        c.write('\n\n');
+
+        for (var i=0; i<cb.Nodes.length; i++) {
+            var n = cb.Nodes[i];
+            c.write(n.Stream+' '+(n.VQ||0)+' '+n.Id+' ');
+            c.write((n.LeftId||0)+' '+n.RightId+'\n');
+            c.write(n.Mean.map(function(n){return ''+n;}).join(' '));
+            c.write('\n');
+            if (n.InvVar) {
+                c.write(n.InvVar.map(function(n){return ''+n;}).join(' '));
+                c.write('\n');
+            }
+            if (n.InvCovar) {
+                c.write(n.InvCovar.map(function(n){return ''+n;}).join(' '));
+                c.write('\n');
+            }
+            c.write('\n');
+        }
+        c.end();
     };
 
     // write out macro definitions in order
