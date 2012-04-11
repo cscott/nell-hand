@@ -7,7 +7,7 @@ TRAINAMT=5
 # total # of mixtures
 MIX=9
 # total # of allographs to train
-ALLOGRAPHS=4
+ALLOGRAPHS=2
 # number of streams (used for vector quantization)
 NSTREAMS=3
 
