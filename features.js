@@ -4,6 +4,8 @@ define(['./point.js'], function(Point) {
     var SMOOTH_N = 3, SMOOTH_ALPHA = .25;
     var RESAMPLE_INTERVAL = 1/7;//1/10;
 
+    var DELTAWINDOW=2, ACCWINDOW=2; // should match values in HTK config
+
     var Box = function(tl, br) {
         this.tl = tl;
         this.br = br;
@@ -231,6 +233,184 @@ define(['./point.js'], function(Point) {
         data_set.features = features;
     };
 
+    var _zerofunc = function() { return 0; };
+    var _compute_deltas = function(features, window) {
+        var len_m1 = features.length - 1;
+        var theta, t, tpt, tmt, i;
+        var numerator, denominator;
+        var dt = [];
+        // from definition in section 5.9 of HTK book
+        for (t=0; t <= len_m1; t++) {
+            numerator = features[t].map(_zerofunc);
+            denominator = 0;
+            for (theta=1; theta <= window; theta++) {
+                tpt = Math.min(t + theta, len_m1);
+                tmt = Math.max(t - theta, 0);
+                for (i = 0; i < features[t].length; i++) {
+                    numerator[i] += theta*(features[tpt][i] - features[tmt][i]);
+                }
+                denominator += theta*theta;
+            }
+            denominator *= 2;
+
+            dt[t] = [];
+            for (i = 0; i < features[t].length; i++) {
+                dt[t][i] = numerator[i] / denominator;
+            }
+        }
+        return dt;
+    };
+    var delta_and_accel = function(data_set) {
+        data_set.deltas = _compute_deltas(data_set.features, DELTAWINDOW);
+        data_set.accels = _compute_deltas(data_set.deltas, ACCWINDOW);
+    };
+    var merge_delta_and_accel = function(data_set) {
+        data_set.features = data_set.features.map(function(f, i) {
+            return f.concat(data_set.deltas[i], data_set.accels[i]);
+        });
+        delete data_set.deltas;
+        delete data_set.accels;
+    };
+
+    var make_linear_decode_func = function(codebook) {
+        console.assert(codebook.Type === 'linear');
+        console.assert(codebook.CovKind === 'euclidean');
+        var table_for_stream = function(stream, featlen) {
+            var table = [];
+            codebook.Nodes.forEach(function(node) {
+                var base = featlen * (node.VQ-1);
+                node.Mean.forEach(function(v, j) {
+                    table[base+j] = v;
+                });
+            });
+            var _table = new Float64Array(table.length);
+            table.forEach(function(v, i) { _table[i] = v; });
+            return _table;
+        };
+        var eucl_dist2 = function(table, j, input) {
+            var base = input.length * j;
+            var acc = 0, d;
+            for (var i=0; i<input.length; i++) {
+                d = (input[i] - tree[base+i]);
+                acc += d*d;
+            }
+            return acc;
+        };
+        var decode_one = function(table, input) {
+            var best = 0, bestd = eucl_dist2(table, 0, input);
+            for (var i=1; i*input.length < table.length; i++) {
+                var d = eucl_dist2(table, i, input);
+                if (d < bestd) {
+                    bestd = d;
+                    best = i;
+                }
+            }
+            return best;
+        };
+        var tables = codebook.Streams.map(function(width, i) {
+            return table_for_stream(i+1, width);
+        });
+        var decodefunc = function(input, i) {
+            return decode_one(tables[i], input);
+        };
+        var decode = function() {
+            return Array.prototype.map.call(arguments, decodefunc);
+        };
+        return decode;
+    };
+    var make_tree_decode_func = function(codebook) {
+        console.assert(codebook.Type === 'tree');
+        console.assert(codebook.CovKind === 'euclidean');
+
+        var tree_for_stream = function(stream, featlen) {
+            var table = {};
+            var tree = [], codepoint = [];
+            codebook.Nodes.forEach(function(node) {
+                if (node.Stream === stream) {
+                    table[node.Id] = node;
+                }
+            });
+            var recurse = function(node, i) {
+                // codepoint value = one greater than VQ index; 0=nonterminal
+                codepoint[i] = node.VQ;
+                var base = i*featlen;
+                node.Mean.forEach(function(v, j) {
+                    tree[base+j] = v;
+                });
+                // do left and right nodes
+                if (node.LeftId) {
+                    recurse(table[node.LeftId], 1 + 2*i);
+                }
+                if (node.RightId) {
+                    recurse(table[node.RightId], 2 + 2*i);
+                }
+            };
+            // first node.Id is 1; heap is 0-based.
+            recurse(table[1], 0);
+            // now make nice native arrays
+            var _tree = new Float64Array(tree.length);
+            tree.forEach(function(v, i) { _tree[i] = v; });
+            var _codepoint = new Uint16Array(codepoint.length);
+            codepoint.forEach(function(v, i) { _codepoint[i] = v; });
+            // done
+            return [_codepoint, _tree];
+        }
+
+        var eucl_dist2 = function(tree, j, input) {
+            var base = input.length * j;
+            var acc = 0, d;
+            for (var i=0; i<input.length; i++) {
+                d = (input[i] - tree[base+i]);
+                acc += d*d;
+            }
+            return acc;
+        };
+        var decode_one = function(codepoint, tree, input) {
+            var i = 0;
+            while (true) {
+                // if this node is terminal, this is the vq index
+                if (codepoint[i] !== 0) return codepoint[i] - 1;
+                // otherwise, is it closer to the left or right vector?
+                var leftd = eucl_dist2(tree, 1 + 2*i, input);
+                var rightd= eucl_dist2(tree, 2 + 2*i, input);
+                i = 1 + 2*i; // left branch
+                if (leftd > rightd) {
+                    i++; // right branch
+                }
+            }
+        };
+
+        var tables = codebook.Streams.map(function(width, i) {
+            return tree_for_stream(i+1, width);
+        });
+        var decodefunc = function(input, i) {
+            return decode_one(tables[i][0], tables[i][1], input);
+        };
+        var decode = function() {
+            return Array.prototype.map.call(arguments, decodefunc);
+        };
+        return decode;
+    };
+
+    var make_vq = function(codebook) {
+        var decode;
+        if (codebook.Type === 'tree') {
+            decode = make_tree_decode_func(codebook);
+        } else if (codebook.Type === 'linear') {
+            decode = make_linear_decode_func(codebook);
+        } else {
+            console.assert(false, codebook.Type);
+        }
+        return function(data_set) {
+            data_set.vq = [];
+            for (var i=0; i<data_set.features.length; i++) {
+                data_set.vq[i] = decode(data_set.features[i],
+                                        data_set.deltas[i],
+                                        data_set.accels[i]);
+            }
+        };
+    };
+
     // exports
     return {
         // parameters
@@ -242,6 +422,9 @@ define(['./point.js'], function(Point) {
         smooth: smooth,
         singleStroke: singleStroke,
         equidist: equidist,
-        features: features
+        features: features,
+        delta_and_accel: delta_and_accel,
+        merge_delta_and_accel: merge_delta_and_accel,
+        make_vq: make_vq
     };
 });

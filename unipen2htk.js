@@ -24,10 +24,21 @@ program
     .option('-S, --script <filename>', 'list of parameter files for training', null)
     .option('-Q, --qualscript <filename>', 'list of parameter files *not* used for training', null)
     .option('-A, --allographs <number>', 'Randomly spread the input into <number> allograph classes', Number, 1)
+    .option('-d, --deltas', 'Include delta and acceleration features')
+    .option('-c, --codebook <filename>', 'Include VQ data using specified JSON codebook',
+            null)
     .parse(process.argv);
 
 var input_file = program.args[0];
 var data = JSON.parse(fs.readFileSync(input_file, 'utf-8'));
+
+var vq_features = null;
+if (program.codebook) {
+    var codebook = JSON.parse(fs.readFileSync(program.codebook, 'utf-8'));
+    console.assert(codebook[0].type==='<codebook>');
+    codebook = codebook[0].value;
+    vq_features = Features.make_vq(codebook);
+}
 
 var mklogfunc = function(what, opt_filename) {
     var fd = -1;
@@ -140,6 +151,17 @@ for (var i=0, n=0; i<data.set.length; i++, bar.tick()) {
 
     Features.features(data.set[i]);
     if (data.set[i].features.length===0) continue;
+
+    if (program.deltas || vq_features) {
+        Features.delta_and_accel(data.set[i]);
+    }
+    if (vq_features) {
+        vq_features(data.set[i]);
+    }
+    if (program.deltas) {
+        Features.merge_delta_and_accel(data.set[i]);
+    }
+
     if (i===0) {
         min_len = data.set[i].features.length;
         max_len = data.set[i].features.length;
@@ -161,6 +183,16 @@ for (var i=0, n=0; i<data.set.length; i++, bar.tick()) {
     var nfeat = data.set[i].features.length;
     if (nfeat === 0) continue; // hm, strange.
     var featvlen = data.set[i].features[0].length;
+    var sampSize = featvlen * 4;
+    var parmKind = 9 /* USER: user defined sample kind */;
+    if (program.deltas) {
+        parmKind += parseInt('001400', 8); /* _D_A */
+    }
+    if (vq_features) {
+        parmKind = 10; /* DISCRETE */
+        featvlen = data.set[i].vq[0].length;
+        sampSize = featvlen * 2;
+    }
 
     var hbuf = new ArrayBuffer(12);
     // nSamples         - number of samples in file (4-byte integer)
@@ -168,16 +200,26 @@ for (var i=0, n=0; i<data.set.length; i++, bar.tick()) {
     // sampPeriod       - sample period in 100ns units (4-byte integer)
     new Uint32Array(hbuf, 4)[0] = Math.round(10000000/RESAMPLE_HERTZ);
     // sampSize         - number of bytes per sample (2-byte integer)
-    new Uint16Array(hbuf, 8)[0] = featvlen * 4;
+    new Uint16Array(hbuf, 8)[0] = sampSize;
     // parmKind         - a code indicating the sample kind (2-byte integer)
-    new Uint16Array(hbuf,10)[0] = 9; // USER: user defined sample kind
+    new Uint16Array(hbuf,10)[0] = parmKind;
 
     // Make a Float32 array w/ the feature vector.
-    var fbuf = new ArrayBuffer(4*nfeat*featvlen);
-    var featv = new Float32Array(fbuf);
-    data.set[i].features.forEach(function (fv, j) {
-        featv.set(fv, j*featvlen);
-    });
+    var fbuf = new ArrayBuffer(sampSize * nfeat), featv;
+    if (vq_features) {
+        featv = new Uint16Array(fbuf);
+        data.set[i].vq.forEach(function(fv, j) {
+            var base = j * featvlen;
+            fv.forEach(function(v, k) {
+                featv[base+k] = (v+1); // HTK uses 1-based VQ values.
+            });
+        });
+    } else {
+        featv = new Float32Array(fbuf);
+        data.set[i].features.forEach(function (fv, j) {
+            featv.set(fv, j*featvlen);
+        });
+    }
 
     // convert to node-native buffer type and write file
     var filename = "" + i;

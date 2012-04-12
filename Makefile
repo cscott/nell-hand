@@ -43,9 +43,12 @@ html/%.html parm/%.mlf parm/%.scr parm/%-qual.scr: json/%.json unipen2htk.js
 # helper: dump parameter file
 parm/%.out: parm/%.htk htk-config $(if $(filter discrete,$(HMMTYPE)),codebook)
 	HList -C htk-config -n $(NSTREAMS) -t $< | tee $@
+all-out: $(patsubst %.htk,%.out,$(wildcard parm/*/*.htk))
+
 # vector quantization whoo
 parm/%.vq: parm/%.htk htk-config $(if $(filter discrete,$(HMMTYPE)),codebook)
 	HCopy -C htk-config $< $@
+all-vq: $(patsubst %.htk,%.vq,$(wildcard parm/*/*.htk))
 
 parm/train.scr: $(ALL_SCRIPT)
 	cat $(ALL_SCRIPT) > $@
