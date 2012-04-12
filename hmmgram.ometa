@@ -114,7 +114,7 @@ ometa HMM <: Parser {
                        -> propval(tag, { macro: mkmacro(ty, name) } ),
 
     // top level rule.
-    top = def+:ds spaces end -> ds,
+    top = def*:ds spaces end -> ds,
 
     def = optmacro
         | varmacro

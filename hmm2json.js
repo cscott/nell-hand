@@ -22,7 +22,7 @@ requirejs(['commander', 'fs', 'q', 'parse', './version'], function(program, fs, 
                 null)
         .parse(process.argv);
 
-    if (program.args.length===0) {
+    if (program.args.length===0 && !program.codebook) {
         console.error("No input.");
         return;
     }
