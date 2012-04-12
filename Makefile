@@ -45,6 +45,14 @@ parm/%.out: parm/%.htk htk-config $(if $(filter discrete,$(HMMTYPE)),codebook)
 	HList -C htk-config -n $(NSTREAMS) -t $< | tee $@
 all-out: $(patsubst %.htk,%.out,$(wildcard parm/*/*.htk))
 
+parmVQ:
+	$(MAKE) codebook
+	./hmm2json.js -o codebook.json -c codebook
+	for l in $(SYMBOLS); do \
+	  mkdir -p parmVQ/$$l ; \
+	  ./unipen2htk.js -d -c codebook.json -T $(TRAINAMT) -A $(ALLOGRAPHS) -P parmVQ/$$l json/$$l.json ; \
+	done
+
 # vector quantization whoo
 parm/%.vq: parm/%.htk htk-config $(if $(filter discrete,$(HMMTYPE)),codebook)
 	HCopy -C htk-config $< $@
