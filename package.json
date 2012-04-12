@@ -18,8 +18,11 @@
     "ometa": "~0.2.2",
     "q", "~0.8.2"
   },
-  "devDependencies": {},
-  "optionalDependencies": {},
+  "devDependencies": {
+  },
+  "optionalDependencies": {
+    "JSV": "~4.0.0"
+  },
   "engines": {
     "node": "~0.7.7"
   },
