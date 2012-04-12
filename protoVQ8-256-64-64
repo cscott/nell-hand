@@ -1,0 +1,39 @@
+~o <VecSize> 30 <USER_D_A_V> <StreamInfo> 3 10 10 10
+~h "proto"
+<BeginHMM>
+ <NumStates> 8
+ <State> 2 <NumMixes> 256 64 64
+  <Stream> 1 <DProb> 13152*256
+  <Stream> 2 <DProb> 9864*64
+  <Stream> 3 <DProb> 9864*64
+ <State> 3 <NumMixes> 256 64 64
+  <Stream> 1 <DProb> 13152*256
+  <Stream> 2 <DProb> 9864*64
+  <Stream> 3 <DProb> 9864*64
+ <State> 4 <NumMixes> 256 64 64
+  <Stream> 1 <DProb> 13152*256
+  <Stream> 2 <DProb> 9864*64
+  <Stream> 3 <DProb> 9864*64
+ <State> 5 <NumMixes> 256 64 64
+  <Stream> 1 <DProb> 13152*256
+  <Stream> 2 <DProb> 9864*64
+  <Stream> 3 <DProb> 9864*64
+ <State> 6 <NumMixes> 256 64 64
+  <Stream> 1 <DProb> 13152*256
+  <Stream> 2 <DProb> 9864*64
+  <Stream> 3 <DProb> 9864*64
+ <State> 7 <NumMixes> 256 64 64
+  <Stream> 1 <DProb> 13152*256
+  <Stream> 2 <DProb> 9864*64
+  <Stream> 3 <DProb> 9864*64
+
+ <TransP> 8
+   0.0 0.8 0.2 0.0 0.0 0.0 0.0 0.0
+   0.0 0.6 0.2 0.2 0.0 0.0 0.0 0.0
+   0.0 0.0 0.6 0.2 0.2 0.0 0.0 0.0
+   0.0 0.0 0.0 0.6 0.2 0.2 0.0 0.0
+   0.0 0.0 0.0 0.0 0.6 0.2 0.2 0.0
+   0.0 0.0 0.0 0.0 0.0 0.6 0.2 0.2
+   0.0 0.0 0.0 0.0 0.0 0.0 0.7 0.3
+   0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0
+<EndHMM>

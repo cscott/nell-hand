@@ -1,0 +1,46 @@
+include Makefile.mix
+
+ALLSTEPS:=$(ALLSTEPS) Z 10 11 12
+FINALSTEP:=12
+JSONOUT:=$(NSTATES)$(TOPOLOGY)s$(ALLOGRAPHS)a$(STREAM1_SIZE)-$(STREAM2_SIZE)-$(STREAM3_SIZE)t.json
+
+# now make a tied mixture HMM
+TIED_BEAM=-c 50
+hmmY/hmmdefs: htk-config hmmX/hmmdefs parm/symbols tie.hed Makefile
+	mkdir -p hmmY
+	HERest -C htk-config -I hmmX/aligned.mlf -s hmmY/stats \
+	  -S parm/train.scr -H hmmX/macros -H hmmX/hmmdefs -M hmmY parm/symbols
+	echo "LS hmmY/stats" > hmmY/mix.hed
+	sed -e 's/STREAM1_SIZE/$(STREAM1_SIZE)/g' \
+	    -e 's/STREAM2_SIZE/$(STREAM2_SIZE)/g' \
+	    -e 's/STREAM3_SIZE/$(STREAM3_SIZE)/g' \
+	    -e 's/LASTSTATE/'`expr $(NSTATES) - 1`'/g' \
+	    tie.hed >> hmmY/mix.hed
+	HHEd -C htk-config -H hmmX/macros -H hmmX/hmmdefs -M hmmY \
+	  hmmY/mix.hed parm/symbols
+# and train it!
+hmmZ/hmmdefs: htk-config hmmY/hmmdefs parm/symbols parm/all.mlf
+	mkdir -p hmmZ
+	HERest -C htk-config -I hmmX/aligned.mlf $(TIED_BEAM) \
+	  -S parm/train.scr -H hmmY/macros -H hmmY/hmmdefs -M hmmZ parm/symbols
+hmm10/hmmdefs: htk-config hmmZ/hmmdefs parm/dict parm/symbols parm/all2.mlf
+	mkdir -p hmm10
+	HVite -C htk-config -H hmmZ/macros -H hmmZ/hmmdefs -S parm/train.scr \
+              -i hmm10/aligned.mlf -m -o SWT -I parm/all2.mlf $(TIED_BEAM) \
+              -y lab parm/dict parm/symbols
+	HERest -C htk-config -I hmm10/aligned.mlf $(TIED_BEAM) \
+	  -S parm/train.scr -H hmmZ/macros -H hmmZ/hmmdefs -M hmm10 parm/symbols
+hmm11/hmmdefs: htk-config hmm10/hmmdefs parm/dict parm/symbols parm/all2.mlf
+	mkdir -p hmm11
+	HVite -C htk-config -H hmm10/macros -H hmm10/hmmdefs -S parm/train.scr \
+              -i hmm11/aligned.mlf -m -o SWT -I parm/all2.mlf $(TIED_BEAM) \
+              -y lab parm/dict parm/symbols
+	HERest -C htk-config -I hmm11/aligned.mlf $(TIED_BEAM) \
+	  -S parm/train.scr -H hmm10/macros -H hmm10/hmmdefs -M hmm11 parm/symbols
+hmm12/hmmdefs: htk-config hmm11/hmmdefs parm/dict parm/symbols parm/all2.mlf
+	mkdir -p hmm12
+	HVite -C htk-config -H hmm11/macros -H hmm11/hmmdefs -S parm/train.scr \
+              -i hmm12/aligned.mlf -m -o SWT -I parm/all2.mlf $(TIED_BEAM) \
+              -y lab parm/dict parm/symbols
+	HERest -C htk-config -I hmm12/aligned.mlf $(TIED_BEAM) \
+	  -S parm/train.scr -H hmm11/macros -H hmm11/hmmdefs -M hmm12 parm/symbols

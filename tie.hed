@@ -1,0 +1,8 @@
+SS 3
+JO STREAM1_SIZE 2.0
+TI st1 {*.state[2-LASTSTATE].stream[1].mix}
+JO STREAM2_SIZE 2.0
+TI st2 {*.state[2-LASTSTATE].stream[2].mix}
+JO STREAM3_SIZE 2.0
+TI st3 {*.state[2-LASTSTATE].stream[3].mix}
+HK TIEDHS
