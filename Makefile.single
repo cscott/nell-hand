@@ -7,7 +7,7 @@ htk-config: htk-config.single
 
 # copy appropriate topology to proto
 proto: proto$(NSTATES)$(TOPOLOGY)
-	if cmp -s $< $@ ; then echo proto up to date ; else cp $< $@ ; fi
+	if cmp -s $< $@ ; then echo $@ up to date ; else cp $< $@ ; fi
 
 # global mean/variance computation
 hmm0/proto hmm0/vFloors: htk-config proto parm/train.scr
@@ -17,25 +17,26 @@ hmm0/proto hmm0/vFloors: htk-config proto parm/train.scr
 # create flat-start monophone models
 hmm0/macros: hmm0/vFloors
 	mkdir -p hmm0
-	echo "~o <VecSize> 30 <USER_D_A>" > $@
-	cat $< >> $@
+	echo "~o <VecSize> 30 <USER_D_A>" > $@.tmp
+	cat $< >> $@.tmp
+	if cmp -s $@.tmp $@ ; then $(RM) $@.tmp ; else mv $@.tmp $@ ; fi
 hmm0/hmmdefs: hmm0/proto
 	mkdir -p hmm0
-	$(RM) -f $@
-	touch $@
+        echo > $@.tmp
 ifeq ($(ALLOGRAPHS),1)
 	for s in $(SYMBOLS); do \
-	  echo '~h "'$$s'"' >> $@ ; \
-	  sed -e '0,/^~h/d' < hmm0/proto >> $@ ; \
+	  echo '~h "'$$s'"' >> $@.tmp ; \
+	  sed -e '0,/^~h/d' < hmm0/proto >> $@.tmp ; \
 	done
 else
 	for s in $(SYMBOLS); do \
 	  for a in `seq 1 $(ALLOGRAPHS)`; do \
-	    echo '~h "'$$s$$a'"' >> $@ ; \
-	    sed -e '0,/^~h/d' < hmm0/proto >> $@ ; \
+	    echo '~h "'$$s$$a'"' >> $@.tmp ; \
+	    sed -e '0,/^~h/d' < hmm0/proto >> $@.tmp ; \
 	  done ; \
 	done
 endif
+	if cmp -s $@.tmp $@ ; then $(RM) $@.tmp ; else mv $@.tmp $@ ; fi
 
 hmm1/hmmdefs: htk-config hmm0/macros hmm0/hmmdefs parm/symbols parm/allograph.mlf
 	mkdir -p hmm1

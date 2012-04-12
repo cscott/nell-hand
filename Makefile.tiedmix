@@ -1,7 +1,7 @@
 include Makefile.mix
 
-ALLSTEPS:=$(ALLSTEPS) Z 10 11 12
-FINALSTEP:=12
+ALLSTEPS:=$(ALLSTEPS) Z 10 11 12 13 14
+FINALSTEP:=14
 JSONOUT:=$(NSTATES)$(TOPOLOGY)s$(ALLOGRAPHS)a$(STREAM1_SIZE)-$(STREAM2_SIZE)-$(STREAM3_SIZE)t.json
 
 # now make a tied mixture HMM
@@ -44,3 +44,17 @@ hmm12/hmmdefs: htk-config hmm11/hmmdefs parm/dict parm/symbols parm/all2.mlf
               -y lab parm/dict parm/symbols
 	HERest -C htk-config -I hmm12/aligned.mlf $(TIED_BEAM) \
 	  -S parm/train.scr -H hmm11/macros -H hmm11/hmmdefs -M hmm12 parm/symbols
+hmm13/hmmdefs: htk-config hmm12/hmmdefs parm/dict parm/symbols parm/all2.mlf
+	mkdir -p hmm13
+	HVite -C htk-config -H hmm12/macros -H hmm12/hmmdefs -S parm/train.scr \
+              -i hmm13/aligned.mlf -m -o SWT -I parm/all2.mlf $(TIED_BEAM) \
+              -y lab parm/dict parm/symbols
+	HERest -C htk-config -I hmm13/aligned.mlf $(TIED_BEAM) \
+	  -S parm/train.scr -H hmm12/macros -H hmm12/hmmdefs -M hmm13 parm/symbols
+hmm14/hmmdefs: htk-config hmm13/hmmdefs parm/dict parm/symbols parm/all2.mlf
+	mkdir -p hmm14
+	HVite -C htk-config -H hmm13/macros -H hmm13/hmmdefs -S parm/train.scr \
+              -i hmm14/aligned.mlf -m -o SWT -I parm/all2.mlf $(TIED_BEAM) \
+              -y lab parm/dict parm/symbols
+	HERest -C htk-config -I hmm14/aligned.mlf $(TIED_BEAM) \
+	  -S parm/train.scr -H hmm13/macros -H hmm13/hmmdefs -M hmm14 parm/symbols
