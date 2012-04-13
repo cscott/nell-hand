@@ -21,6 +21,7 @@
   "devDependencies": {
   },
   "optionalDependencies": {
+    "amdefine", "~0.0.2",
     "JSV": "~4.0.0"
   },
   "engines": {

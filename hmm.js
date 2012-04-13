@@ -1,3 +1,6 @@
+if (typeof define !== 'function') {
+    var define = require('amdefine')(module);
+}
 define([], function() {
 
     var make_recog = function(hmmdef) {

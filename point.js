@@ -1,3 +1,6 @@
+if (typeof define !== 'function') {
+    var define = require('amdefine')(module);
+}
 define([], function() {
     var Point = function(x, y, isUp) {
         this.x = x; this.y = y; this.isUp = isUp || false;
