@@ -142,6 +142,7 @@ accuracy: $(foreach n,$(ALLSTEPS),hmm$(n)/accuracy.txt)
 qual:     $(foreach n,$(ALLSTEPS),hmm$(n)/accuracy-qual.txt)
 final-accuracy: hmm$(FINALSTEP)/accuracy.txt hmm$(FINALSTEP)/accuracy-qual.txt
 json:     $(JSONOUT)
+	echo $(JSONOUT) up to date.
 
 # ta-da
 $(JSONOUT): hmm$(FINALSTEP)/hmmdefs
@@ -157,6 +158,18 @@ $(JSONOUT): hmm$(FINALSTEP)/hmmdefs
 	  tee $@ | head -7
 %/accuracy-qual.txt: %/recout-qual.mlf parm/all2.mlf parm/words
 	HResults -p -I parm/all2.mlf parm/words $*/recout-qual.mlf | \
+	  tee $@ | head -7
+
+# evaluate javascript implementation of recognizer
+js-recout.mlf: $(JSONOUT) parm/train.scr
+	./recog.js -A -o $@ -S parm/train.scr $(JSONOUT)
+js-recout-qual.mlf: $(JSONOUT) parm/qual.scr
+	./recog.js -A -o $@ -S parm/qual.scr $(JSONOUT)
+js-accuracy.txt: js-recout.mlf parm/all2.mlf parm/words
+	HResults -p -I parm/all2.mlf parm/words js-recout.mlf | \
+	  tee $@ | head -7
+js-accuracy-qual.txt: js-recout-qual.mlf parm/all2.mlf parm/words
+	HResults -p -I parm/all2.mlf parm/words js-recout-qual.mlf | \
 	  tee $@ | head -7
 
 very-clean: clean

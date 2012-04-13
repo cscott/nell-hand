@@ -10,13 +10,15 @@ requirejs(['commander', 'fs', 'q', './features', './hmm', './version'], function
         .option('-o, --output <outfile>',
                 'Output to the specified file (default stdout)',
                 null)
+        .option('-A, --strip_allograph', "Strip allograph suffix from result")
         .option('-S, --script <script file>',
                 'File with additional command-line arguments',
                 null)
+        .option('-T, --time', "Don't emit output, just time the recognition.")
         .parse(process.argv);
 
     if (program.script) {
-        var extra = fs.readFileSync(program.script, 'utf-8').split(/\s+/);
+        var extra= fs.readFileSync(program.script, 'utf-8').trim().split(/\s+/);
         program.args.push.apply(program.args, extra);
     }
     if (program.args.length===0) {
@@ -25,14 +27,14 @@ requirejs(['commander', 'fs', 'q', './features', './hmm', './version'], function
     }
     var output = process.stdout;
     if (program.output) {
-        output = fs.createWriteStream(program.output, { encoding: 'utf-8' });
+        if (program.time) {
+            console.error("Timing recognition; skipping output.");
+        } else {
+            output=fs.createWriteStream(program.output, { encoding: 'utf-8' });
+        }
     }
 
     var hmmdef = JSON.parse(fs.readFileSync(program.args.shift(), 'utf-8'));
-    var vq_features = null;
-    if (hmmdef[0].type==='<codebook>') {
-        vq_features = Features.make_vq(hmmdef[0].value);
-    }
     var recognizer = HMM.make_recog(hmmdef);
 
     var readHTK = function(filename) {
@@ -55,20 +57,49 @@ requirejs(['commander', 'fs', 'q', './features', './hmm', './version'], function
     };
 
     // read the rest of the files.
-    output.write('#!MLF!#\n');
-    program.args.forEach(function(filename) {
-        output.write(JSON.stringify(filename)+'\n');
+    var do_read = function(filename) {
         // read HTK file.
-        var data_set = readHTK(filename);
+        return [filename, readHTK(filename)];
+    };
+    var do_delta = function(args) {
+        var filename = args[0], data_set = args[1];
         // add missing features
         Features.delta_and_accel(data_set);
-        if (vq_features) {
-            vq_features(data_set);
-        }
+        return args;
+    };
+    var do_recog = function(args) {
+        var filename = args[0], data_set = args[1];
         // recognize!
-        var result = recognizer(data_set);
-        output.write(result);
-        output.write('\n.\n');
-    });
-    if (program.output) output.end();
+        return [filename, recognizer(data_set)];
+    };
+    if (program.time) {
+        console.log(program.args.length+" input files.");
+
+        console.time('HTK file input');
+        var input = program.args.map(do_read);
+        console.timeEnd('HTK file input');
+
+        console.time('Delta computation');
+        input = input.map(do_delta);
+        console.timeEnd('Delta computation');
+
+        console.time('Recognition time');
+        var results = input.map(do_recog);
+        console.timeEnd('Recognition time');
+
+        // skip output step.
+    } else {
+        output.write('#!MLF!#\n');
+        program.args.forEach(function(filename) {
+            var result = do_recog(do_delta(do_read(filename)))[1];
+            output.write(JSON.stringify(filename)+'\n');
+            var model = result[0], score = result[1];
+            if (program.strip_allograph) {
+                model = model.replace(/[0-9]+$/, '');
+            }
+            output.write(model+"\t"+score);
+            output.write('\n.\n');
+        });
+    }
+    if (program.output && !program.time) output.end();
 });
