@@ -94,6 +94,10 @@ define(['./features'], function(Features) {
                         states[j].pred.push([states[i], tolog(aij)]);
                 }
             }
+            states.forEach(function(s, i) {
+                if (i>0 && s.pred.length==0)
+                    console.warn("No transitions into state", i, "in", name);
+            });
             return { name: name, states: states };
         };
         var models = extract_models(hmmdef, mkmodel, process_codebook);
@@ -106,6 +110,7 @@ define(['./features'], function(Features) {
                     return (t===0) ? 0 : Infinity; /* base case */
                 }
                 if (t===0) return Infinity;
+                if (state.pred.length===0) return Infinity; /* unusual */
 
                 // compute probability of emitting signal o_t in this state
                 var o_t = input[t-1];
