@@ -173,9 +173,10 @@ js-accuracy-qual.txt: js-recout-qual.mlf parm/all2.mlf parm/words
 	  tee $@ | head -7
 
 very-clean: clean
-	$(RM) -rf html parm codebook htk-config
+	$(RM) -rf html parm codebook htk-config $(JSONOUT)
 clean:
-	$(RM) -rf hmm? hmm?? proto
+	$(RM) -rf hmm? hmm?? proto \
+	  js-accuracy.txt js-accuracy-qual.txt js-recout.mlf js-recout-qual.mlf
 
 # prevent deletion of %/recout.mlf
 .SECONDARY:
