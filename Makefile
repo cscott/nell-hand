@@ -7,18 +7,21 @@ TRAINAMT=5
 # HMM type: discrete, mix, tiedmix
 HMMTYPE=discrete
 # HMM topology
-NSTATES=8
+NSTATES=16
 TOPOLOGY=
 # total # of mixtures (for mix, tiedmix types)
 MIX=5
 # total # of allographs to train
-ALLOGRAPHS=2
+ALLOGRAPHS=4
 # number of streams
 # (used for discrete and tiedmix HMMs)
 NSTREAMS=3
 STREAM1_SIZE=256
-STREAM2_SIZE=64
-STREAM3_SIZE=16
+STREAM2_SIZE=128
+STREAM3_SIZE=128
+# override final step here if final is overtrained
+#JSONSTEP=$(FINALSTEP)
+JSONSTEP=9
 
 #SYMBOLS=$(UPPER_LETTERS) $(LOWER_LETTERS) $(DIGITS)
 SYMBOLS=$(UPPER_LETTERS)
@@ -26,8 +29,6 @@ SYMBOLS=$(UPPER_LETTERS)
 ALL_SCRIPT=$(foreach l,$(SYMBOLS),parm/$(l).scr)
 ALL_LABEL=$(foreach l,$(SYMBOLS),parm/$(l).mlf)
 ALL_HTML=$(foreach l,$(SYMBOLS),html/$(l).html)
-
-JSONOUT=$(TOPOLOGY)s$(MIX)m$(ALLOGRAPHS)a.json
 
 all: accuracy qual json
 
@@ -145,9 +146,9 @@ json:     $(JSONOUT)
 	echo $(JSONOUT) up to date.
 
 # ta-da
-$(JSONOUT): hmm$(FINALSTEP)/hmmdefs
+$(JSONOUT): hmm$(JSONSTEP)/hmmdefs
 	./hmm2json.js -o $@ $(if $(filter discrete,$(HMMTYPE)),-c codebook) \
-	              hmm$(FINALSTEP)/macros hmm$(FINALSTEP)/hmmdefs
+	              hmm$(JSONSTEP)/macros hmm$(JSONSTEP)/hmmdefs
 
 %/recout.mlf: %/hmmdefs parm/train.scr parm/wdnet-single parm/dict parm/symbols
 	HVite -C htk-config -H $*/macros -H $*/hmmdefs -S parm/train.scr -i $@ -t 250 150 1000 -w parm/wdnet-single parm/dict parm/symbols

@@ -139,6 +139,8 @@ DISCRETE: treevq-euclidean distance 256/64/16
  16 states, 4 allographs:           95.93% [92.39%]
 DISCRETE: treevq-euclidean distance 256/64/64
   8 states, 4 allographs:           95.24% [91.94%] (slightly overtrained)
+DISCRETE: treevq-euclidean distance 256/128/128
+ 16 states, 4 allographs:           96.57% [92.78%] (hmm9) (hmmA overtrained)
 DISCRETE: treevq-euclidean distance 512/64/16
   8 states, 4 allographs:           95.16% [91.74%]
 DISCRETE: treevq-diagonal mahalanobis distance 256/64/16
