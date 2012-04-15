@@ -76,7 +76,11 @@ define(['./features'], function(Features) {
                 states.push({
                     id: states.length,
                     output: def.States[i].Streams.map(function(d) {
-                        return expand_weightlist(d.DProb);
+                        return expand_weightlist(d.DProb).map(function(x) {
+                            // convert from oddly-scaled DProb values into
+                            // standard log probability.
+                            return x/-2371.8;
+                        });
                     }),
                     // XXX we ignore stream weights
                     weights: def.States[i].SWeights,
@@ -94,7 +98,7 @@ define(['./features'], function(Features) {
                 for (j=0; j < def.NumStates; j++) { /* to state */
                     var aij = def.TransP.entries[(i*def.NumStates)+j];
                     if (aij > 0)
-                        states[j].pred.push([states[i], tolog(aij)]);
+                        states[j].pred.push([states[i], Math.log(aij)]);
                 }
             }
             states.forEach(function(s, i) {
@@ -110,10 +114,10 @@ define(['./features'], function(Features) {
             var phi = function(phi, state, t) {
                 var j;
                 if (state.start) {
-                    return (t===0) ? 0 : Infinity; /* base case */
+                    return (t===0) ? 0 : -Infinity; /* base case */
                 }
-                if (t===0) return Infinity;
-                if (state.pred.length===0) return Infinity; /* unusual */
+                if (t===0) return -Infinity;
+                if (state.pred.length===0) return -Infinity; /* unusual */
 
                 // compute probability of emitting signal o_t in this state
                 var o_t = input[t-1];
@@ -124,12 +128,11 @@ define(['./features'], function(Features) {
                 }
 
                 // maximized prob of reaching this state
-                // (log probs are negated, so max prob == Math.min)
                 console.assert(state.pred.length);
                 var bestp = phi(phi, state.pred[0][0], t-1) + state.pred[0][1];
                 for (j = 1; j < state.pred.length; j++) {
                     var p = phi(phi, state.pred[j][0], t-1) + state.pred[j][1];
-                    if (p < bestp) { bestp = p; }
+                    if (p > bestp) { bestp = p; }
                 }
                 return bestp + b_j;
             };
@@ -157,17 +160,15 @@ define(['./features'], function(Features) {
                     return memo_table[state.id][t];
                 };
 
-                // our log probs are negated, so max prob == min phi
-                // (negate result so that 'maxp' makes sense to caller)
                 var pred = model.states[model.states.length-1].pred;
                 console.assert(pred.length > 0);
 
                 var bestp = phiN(memoized_phi, pred[0][0], pred[0][1]);
                 for (var j=1; j<pred.length; j++) {
                     var p = phiN(memoized_phi, pred[j][0], pred[j][1]);
-                    if (p < bestp) bestp = p;
+                    if (p > bestp) bestp = p;
                 }
-                return -bestp;
+                return bestp;
             };
             return maxp;
         };
