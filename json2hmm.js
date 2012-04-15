@@ -55,7 +55,7 @@ requirejs(['commander', 'fs', './version'], function(program, fs, version) {
         if (m.type === '~h' && !m.name) {
             firstline = null;
         }
-        if (m.type === '<codebook>') {
+        if (m.type === '<codebook>' || m.type === '<comment>') {
             firstline = null;
         }
         if (firstline) p(firstline);
@@ -269,6 +269,10 @@ requirejs(['commander', 'fs', './version'], function(program, fs, version) {
             }
             p(line.join(' '));
         }
+    };
+    // ignore comment field
+    emitMacro['<comment>'] = function(commane) {
+        /* ignore comment field */
     };
 
     // code book support.

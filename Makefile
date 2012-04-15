@@ -148,6 +148,7 @@ json:     $(JSONOUT)
 # ta-da
 $(JSONOUT): hmm$(JSONSTEP)/hmmdefs
 	./hmm2json.js -o $@ $(if $(filter discrete,$(HMMTYPE)),-c codebook) \
+	    --comment "$(HMMTYPE) $(NSTATES)$(TOPOLOGY) states, $(ALLOGRAPHS) allographs, $(MIX) mixes/$(STREAM1_SIZE)-$(STREAM2_SIZE)-$(STREAM3_SIZE) hmm$(JSONSTEP) TRAINAMT=$(TRAINAMT)" \
 	              hmm$(JSONSTEP)/macros hmm$(JSONSTEP)/hmmdefs
 
 %/recout.mlf: %/hmmdefs parm/train.scr parm/wdnet-single parm/dict parm/symbols

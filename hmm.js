@@ -33,6 +33,9 @@ define(['./features'], function(Features) {
 
         for (var i=0; i<hmmdef.length; i++) {
             switch(hmmdef[i].type) {
+            case '<comment>':
+                /* ignore */
+                break;
             case '<codebook>':
                 process_codebook(hmmdef[i].value);
                 break;

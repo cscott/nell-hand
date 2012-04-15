@@ -35,7 +35,10 @@ var data = JSON.parse(fs.readFileSync(input_file, 'utf-8'));
 var vq_features = null;
 if (program.codebook) {
     var codebook = JSON.parse(fs.readFileSync(program.codebook, 'utf-8'));
-    console.assert(codebook[0].type==='<codebook>');
+    /* Find the <codebook> field, skip <comments> etc. */
+    while (codebook.length && codebook[0].type!=='<codebook>')
+        codebook.shift();
+    console.assert(codebook.length && codebook[0].type==='<codebook>');
     codebook = codebook[0].value;
     vq_features = Features.make_vq(codebook);
 }

@@ -20,6 +20,9 @@ requirejs(['commander', 'fs', 'q', 'parse', './version'], function(program, fs, 
         .option('-o, --output <outfile>',
                 'Output to the specified file (default stdout)',
                 null)
+        .option('-C, --comment <comment>',
+                'Add given comment to the output JSON',
+                null)
         .parse(process.argv);
 
     if (program.args.length===0 && !program.codebook) {
@@ -54,6 +57,10 @@ requirejs(['commander', 'fs', 'q', 'parse', './version'], function(program, fs, 
         }).spread(function(cb_result, hmm_result) {
             if (program.codebook) {
                 hmm_result.unshift({ type: "<codebook>", value: cb_result });
+            }
+            if (program.comment) {
+                hmm_result.unshift({ type: "<comment>",
+                                     value: program.comment });
             }
             var jsonString = JSON.stringify(hmm_result);
             output.write(jsonString);
