@@ -22,7 +22,7 @@ hmm0/macros: hmm0/vFloors
 	if cmp -s $@.tmp $@ ; then $(RM) $@.tmp ; else mv $@.tmp $@ ; fi
 hmm0/hmmdefs: hmm0/proto
 	mkdir -p hmm0
-        echo > $@.tmp
+	echo > $@.tmp
 ifeq ($(ALLOGRAPHS),1)
 	for s in $(SYMBOLS); do \
 	  echo '~h "'$$s'"' >> $@.tmp ; \
