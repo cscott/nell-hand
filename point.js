@@ -1,3 +1,12 @@
+/*jshint
+  eqeqeq:true, curly:true, latedef:true, newcap:true, undef:true,
+  trailing:true, es5:true, globalstrict:true
+ */
+/*global define:true, console:false, require:false, module:false */
+'use strict';
+if (typeof define !== 'function') {
+    var define = require('amdefine')(module);
+}
 if (typeof define !== 'function') {
     var define = require('amdefine')(module);
 }
@@ -12,7 +21,7 @@ define([], function() {
         interp: function(p, amt) { return Point.interp(this, p, amt); }
     };
     Point.equals = function(a, b) {
-        if (a===b) return true;
+        if (a===b) { return true; }
         return (a.x === b.x) && (a.y === b.y) && (a.isUp === b.isUp);
     };
     Point.dist2 = function(a, b) {

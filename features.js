@@ -1,10 +1,19 @@
+/*jshint
+  eqeqeq:true, curly:true, latedef:true, newcap:true, undef:true,
+  trailing:true, es5:true, globalstrict:true
+ */
+/*global
+  define:true, console:false, require:false, module:false,
+  Float64Array:false, Uint16Array:false
+ */
+'use strict';
 if (typeof define !== 'function') {
     var define = require('amdefine')(module);
 }
 define(['./point.js'], function(Point) {
 
     // tunable parameters
-    var SMOOTH_N = 3, SMOOTH_ALPHA = .25;
+    var SMOOTH_N = 3, SMOOTH_ALPHA = 0.25;
     var RESAMPLE_INTERVAL = 1/7;//1/10;
 
     var DELTAWINDOW=2, ACCWINDOW=2; // should match values in HTK config
@@ -43,10 +52,11 @@ define(['./point.js'], function(Point) {
         // remove dups
         data_set.strokes = data_set.strokes.map(function(stroke) {
             stroke = stroke.map(mkpt);
-            var nstrokes = [stroke[0]];
-            for (var i=1; i<stroke.length; i++) {
-                if (stroke[i].equals(stroke[i-1]))
+            var nstrokes = [stroke[0]], i;
+            for (i=1; i<stroke.length; i++) {
+                if (stroke[i].equals(stroke[i-1])) {
                     continue;
+                }
                 nstrokes.push(stroke[i]);
             }
             return nstrokes;
@@ -82,15 +92,16 @@ define(['./point.js'], function(Point) {
 
     var smooth = function(data_set) {
         data_set.strokes = data_set.strokes.map(function(stroke) {
-            var nstroke = [];
-            for (var i=0; i<stroke.length; i++) {
+            var nstroke = [], i, j;
+            for (i=0; i<stroke.length; i++) {
                 var acc = new Point(stroke[i].x * SMOOTH_ALPHA,
                                     stroke[i].y * SMOOTH_ALPHA );
                 var n = SMOOTH_N;
                 // [0, 1, 2, 3, 4 ] .. N = 2, length=5
-                while (n>0 && (i<n || i>=(stroke.length-n)))
+                while (n>0 && (i<n || i>=(stroke.length-n))) {
                     n--;
-                for (var j=1; j<=n; j++) {
+                }
+                for (j=1; j<=n; j++) {
                     acc.x += stroke[i-j].x + stroke[i+j].x;
                     acc.y += stroke[i-j].y + stroke[i+j].y;
                 }
@@ -106,9 +117,9 @@ define(['./point.js'], function(Point) {
         var nstroke = [];
         data_set.strokes.forEach(function(stroke) {
             // add "pen up" stroke.
-            var first = stroke[0];
+            var first = stroke[0], j;
             nstroke.push(new Point(first.x, first.y, true/*up!*/));
-            for (var j = 1; j < stroke.length; j++) {
+            for (j = 1; j < stroke.length; j++) {
                 nstroke.push(stroke[j]);
             }
         });
@@ -117,7 +128,7 @@ define(['./point.js'], function(Point) {
 
     var equidist = function(data_set, dist) {
         console.assert(data_set.strokes.length===1);
-        if (!dist) dist = RESAMPLE_INTERVAL;
+        if (!dist) { dist = RESAMPLE_INTERVAL; }
         var stroke = data_set.strokes[0];
         if (stroke.length === 0) { return; /* bad data */ }
         var nstroke = [];
@@ -191,8 +202,8 @@ define(['./point.js'], function(Point) {
             };
             var d0 = dist2line(m1), d1 = dist2line(pt), d2 = dist2line(p1);
             var dN = 3;
-            if (m1.equals(m2)) dN--;
-            if (p1.equals(p2)) dN--;
+            if (m1.equals(m2)) { dN--; }
+            if (p1.equals(p2)) { dN--; }
 
             features[i] = [
                 // curvature (fill in in next pass)
@@ -217,12 +228,12 @@ define(['./point.js'], function(Point) {
         }
         // fill in curvature features
         for (i=0; i<features.length; i++) {
-            var m1 = features[(i<1) ? 0 : (i-1)];
+            var M1 = features[(i<1) ? 0 : (i-1)];
             var ft = features[i];
-            var p1 = features[((i+1)<features.length)? (i+1) : (features.length-1)];
+            var P1 = features[((i+1)<features.length)? (i+1) : (features.length-1)];
 
-            var cosm1 = m1[2], sinm1 = m1[3];
-            var cosp1 = p1[2], sinp1 = p1[3];
+            var cosm1 = M1[2], sinm1 = M1[3];
+            var cosp1 = P1[2], sinp1 = P1[3];
             ft[0] = (cosm1*cosp1) + (sinm1*sinp1);
             ft[1] = (cosm1*sinp1) - (sinm1*cosp1);
         }
@@ -292,16 +303,16 @@ define(['./point.js'], function(Point) {
         };
         var eucl_dist2 = function(table, j, input) {
             var base = input.length * j;
-            var acc = 0, d;
-            for (var i=0; i<input.length; i++) {
-                d = (input[i] - tree[base+i]);
+            var acc = 0, d, i;
+            for (i=0; i<input.length; i++) {
+                d = (input[i] - table[base+i]);
                 acc += d*d;
             }
             return acc;
         };
         var decode_one = function(table, input) {
-            var best = 0, bestd = eucl_dist2(table, 0, input);
-            for (var i=1; i*input.length < table.length; i++) {
+            var best = 0, bestd = eucl_dist2(table, 0, input), i;
+            for (i=1; i*input.length < table.length; i++) {
                 var d = eucl_dist2(table, i, input);
                 if (d < bestd) {
                     bestd = d;
@@ -357,12 +368,12 @@ define(['./point.js'], function(Point) {
             codepoint.forEach(function(v, i) { _codepoint[i] = v; });
             // done
             return [_codepoint, _tree];
-        }
+        };
 
         var eucl_dist2 = function(tree, j, input) {
             var base = input.length * j;
-            var acc = 0, d;
-            for (var i=0; i<input.length; i++) {
+            var acc = 0, d, i;
+            for (i=0; i<input.length; i++) {
                 d = (input[i] - tree[base+i]);
                 acc += d*d;
             }
@@ -372,7 +383,7 @@ define(['./point.js'], function(Point) {
             var i = 0;
             while (true) {
                 // if this node is terminal, this is the vq index
-                if (codepoint[i] !== 0) return codepoint[i] - 1;
+                if (codepoint[i] !== 0) { return codepoint[i] - 1; }
                 // otherwise, is it closer to the left or right vector?
                 var leftd = eucl_dist2(tree, 1 + 2*i, input);
                 var rightd= eucl_dist2(tree, 2 + 2*i, input);
@@ -406,7 +417,8 @@ define(['./point.js'], function(Point) {
         }
         return function(data_set) {
             data_set.vq = [];
-            for (var i=0; i<data_set.features.length; i++) {
+            var i;
+            for (i=0; i<data_set.features.length; i++) {
                 data_set.vq[i] = decode(data_set.features[i],
                                         data_set.deltas[i],
                                         data_set.accels[i]);

@@ -1,3 +1,9 @@
+/*jshint
+  eqeqeq:true, curly:true, latedef:true, newcap:true, undef:true,
+  trailing:true, es5:true, globalstrict:true
+ */
+/*global define:true, console:false, require:false, module:false */
+'use strict';
 if (typeof define !== 'function') {
     var define = require('amdefine')(module);
 }
@@ -15,8 +21,8 @@ define(['./features'], function(Features) {
     };
 
     var omerge = function() {
-        var r = arguments.length ? arguments[0] : {}, o;
-        for (var i=1; i<arguments.length; i++) {
+        var r = arguments.length ? arguments[0] : {}, o, i, name;
+        for (i=1; i<arguments.length; i++) {
             o = arguments[i];
             for (name in o) {
                 if (o.hasOwnProperty(name)) {
@@ -31,8 +37,9 @@ define(['./features'], function(Features) {
         var globals = {};
         var models = [];
         var mixes = {};
+        var i;
 
-        for (var i=0; i<hmmdef.length; i++) {
+        for (i=0; i<hmmdef.length; i++) {
             switch(hmmdef[i].type) {
             case '<comment>':
                 /* ignore */
@@ -60,34 +67,37 @@ define(['./features'], function(Features) {
     };
 
     var expand_weightlist = function(a) {
-        var r = [];
-        for (var i=0; i<a.length; i++) {
-            for (var j=0; j<a[i][1]; j++) {
+        var r = [], i, j;
+        for (i=0; i<a.length; i++) {
+            for (j=0; j<a[i][1]; j++) {
                 r.push(a[i][0]);
             }
         }
         return r;
     };
 
-    var process_transp = function(def, states) {
+    var process_transp = function(name, def, states) {
+        var i, j;
         console.assert(def.TransP.type==='square');
         console.assert(def.TransP.rows===def.NumStates);
         for (i=0; i < def.NumStates-1; i++) { /* from state */
             for (j=0; j < def.NumStates; j++) { /* to state */
                 var aij = def.TransP.entries[(i*def.NumStates)+j];
-                if (aij > 0)
+                if (aij > 0) {
                     states[j].pred.push([states[i], Math.log(aij)]);
+                }
             }
         }
         states.forEach(function(s, i) {
-            if (i>0 && s.pred.length==0)
+            if (i>0 && s.pred.length===0) {
                 console.warn("No transitions into state", i, "in", name);
+            }
         });
     };
 
     var best_model = function(models, maxp) {
-        var best=0, bestp = maxp(models[0]), p;
-        for (var i=1; i<models.length; i++) {
+        var best=0, bestp = maxp(models[0]), p, i;
+        for (i=1; i<models.length; i++) {
             p = maxp(models[i]);
             if (p > bestp) {
                 best = i;
@@ -97,7 +107,10 @@ define(['./features'], function(Features) {
         return [models[best].name, bestp];
     };
 
-    var make_discrete_recog = function(hmmdef) {
+    var DISCRETE_DEFAULTS = {
+        // default options go here.
+    };
+    var make_discrete_recog = function(hmmdef, options) {
         var vq_features;
         var process_codebook = function(_, globals, codebook) {
             vq_features = Features.make_vq(codebook);
@@ -126,7 +139,7 @@ define(['./features'], function(Features) {
             }
             states.push({ id: states.length, pred: [] }); /* exit state */
             // process transition matrix
-            process_transp(def, states);
+            process_transp(name, def, states);
             // ok, done!
             return { name: name, states: states };
         };
@@ -143,8 +156,8 @@ define(['./features'], function(Features) {
                 if (state.start) {
                     return (t===0) ? 0 : -Infinity; /* base case */
                 }
-                if (t===0) return -Infinity;
-                if (state.pred.length===0) return -Infinity; /* unusual */
+                if (t===0) { return -Infinity; }
+                if (state.pred.length===0) { return -Infinity; /* unusual */ }
 
                 // compute probability of emitting signal o_t in this state
                 var o_t = input[t-1];
@@ -175,7 +188,7 @@ define(['./features'], function(Features) {
                 //console.log("Considering "+model.name);
 
                 // need to memoize the computation of phi
-                var memo_table = model.states.map(function(){ return [] });
+                var memo_table = model.states.map(function(){ return []; });
                 var memoized_phi = function(_, state, t) {
                     if (!(t in memo_table[state.id])) {
                         memo_table[state.id][t] = phi(memoized_phi, state, t);
@@ -191,9 +204,10 @@ define(['./features'], function(Features) {
                 console.assert(pred.length > 0);
 
                 var bestp = phiN(memoized_phi, pred[0][0], pred[0][1]);
-                for (var j=1; j<pred.length; j++) {
-                    var p = phiN(memoized_phi, pred[j][0], pred[j][1]);
-                    if (p > bestp) bestp = p;
+                var j, p;
+                for (j=1; j<pred.length; j++) {
+                    p = phiN(memoized_phi, pred[j][0], pred[j][1]);
+                    if (p > bestp) { bestp = p; }
                 }
                 return bestp;
             };
@@ -202,21 +216,25 @@ define(['./features'], function(Features) {
 
         return function(data_set) {
             vq_features(data_set);
-            if (false) return ["A1", 0]; // DEBUGGING: time VQ in isolation
+            if (false) { return ["A1", 0];/* DEBUGGING: time VQ in isolation */}
 
             var maxp = make_maxp(data_set.vq);
             return best_model(models, maxp);
-        }
+        };
     };
 
-    var make_tied_mix_recog = function(hmmdef) {
+    var TIED_MIX_DEFAULTS = {
+        // default options go here.
+    };
+    var make_tied_mix_recog = function(hmmdef, options) {
         var codebooks = [];
         var make_codebook = function(streamno, name, len, globals) {
-            if (!codebooks[streamno])
+            if (!codebooks[streamno]) {
                 codebooks[streamno] = {};
+            }
             if (!codebooks[streamno][name]) {
-                var c = [];
-                for (var i=1; i <= len; i++) {
+                var c = [], i;
+                for (i=1; i <= len; i++) {
                     var n = name + '' + i;
                     console.assert(n in globals.MixCodebook);
                     c.push(globals.MixCodebook[n]);
@@ -251,17 +269,18 @@ define(['./features'], function(Features) {
             }
             states.push({ id: states.length, pred: [] }); /* exit state */
 
-            process_transp(def, states);
+            process_transp(name, def, states);
             return { name: name, states: states };
         };
         var process_mix = function(name, globals, def) {
             var mix = def.Mix;
-            if (!globals.MixCodebook) globals.MixCodebook = {};
+            if (!globals.MixCodebook) { globals.MixCodebook = {}; }
             globals.MixCodebook[name] = mix;
             // fill in GConst: (2pi)^n * |COV|
             // console.log('GConst (old)', mix.GConst);
             var gconst = Math.log(2*Math.PI) * mix.Variance.length;
-            for (var i=0; i<mix.Variance.length; i++) {
+            var i;
+            for (i=0; i<mix.Variance.length; i++) {
                 gconst += Math.log(mix.Variance[i]);
             }
             mix.GConst = gconst;
@@ -286,18 +305,20 @@ define(['./features'], function(Features) {
             return data_set.features.map(function(_, t) {
                 // "for each observation..."
                 var input = [ data_set.features[t] ];
-                if (codebooks.length > 1)
+                if (codebooks.length > 1) {
                     input.push( data_set.deltas[t] );
-                if (codebooks.length > 2)
+                }
+                if (codebooks.length > 2) {
                     input.push( data_set.accels[t] );
+                }
 
                 return input.map(function(v, i) { // "for each stream..."
                     return codebooks[i].map(function(mix) {
                         // N(o;u,E)=e^((-1/2)*(o-u)'*E^-1*(o-u))/(GConst)^(-1/2)
                         // [HTK book 7.2] -- logarithmic math
                         console.assert(v.length === mix.Mean.length);
-                        var acc = 0;
-                        for (var j=0; j<v.length; j++) {
+                        var acc = 0, j;
+                        for (j=0; j<v.length; j++) {
                             var o_minus_mean = v[j] - mix.Mean[j];
                             acc += o_minus_mean*o_minus_mean / mix.Variance[j];
                         }
@@ -313,18 +334,18 @@ define(['./features'], function(Features) {
                 if (state.start) {
                     return (t===0) ? 0 : -Infinity; /* base case */
                 }
-                if (t===0) return -Infinity;
-                if (state.pred.length===0) return -Infinity; /* unusual */
+                if (t===0) { return -Infinity; }
+                if (state.pred.length===0) { return -Infinity; /* unusual */ }
 
                 // compute probability of emitting signal o_t in this state
                 var o_t = input[t-1];
-                var b_j = 0;
+                var b_j = 0, g;
                 // XXX we're ignoring stream weights
                 for (j = 0; j<o_t.length; j++) {
                     // find maximum weighted gaussian
                     var best = 0, bestg= o_t[j][0] + state.output[j].weights[0];
                     for (i=0; i<state.output[j].weights.length; i++) {
-                        var g = o_t[j][i] + state.output[j].weights[i];
+                        g = o_t[j][i] + state.output[j].weights[i];
                         if (g > bestg) { bestg = g; best = i; }
                     }
                     // sum all the gaussians, using the identity:
@@ -333,8 +354,8 @@ define(['./features'], function(Features) {
                     b_j += bestg;
                     var partial = 1;
                     for (i=0; i<state.output[j].weights.length; i++) {
-                        if (i === best) continue;
-                        var g = o_t[j][i] + state.output[j].weights[i];
+                        if (i === best) { continue; }
+                        g = o_t[j][i] + state.output[j].weights[i];
                         partial += Math.exp(g - bestg);
                     }
                     b_j += Math.log(partial);
@@ -361,7 +382,7 @@ define(['./features'], function(Features) {
                 //console.log("Considering "+model.name);
 
                 // need to memoize the computation of phi
-                var memo_table = model.states.map(function(){ return [] });
+                var memo_table = model.states.map(function(){ return []; });
                 var memoized_phi = function(_, state, t) {
                     if (!(t in memo_table[state.id])) {
                         memo_table[state.id][t] = phi(memoized_phi, state, t);
@@ -376,10 +397,10 @@ define(['./features'], function(Features) {
                 var pred = model.states[model.states.length-1].pred;
                 console.assert(pred.length > 0);
 
-                var bestp = phiN(memoized_phi, pred[0][0], pred[0][1]);
-                for (var j=1; j<pred.length; j++) {
+                var bestp = phiN(memoized_phi, pred[0][0], pred[0][1]), j;
+                for (j=1; j<pred.length; j++) {
                     var p = phiN(memoized_phi, pred[j][0], pred[j][1]);
-                    if (p > bestp) bestp = p;
+                    if (p > bestp) { bestp = p; }
                 }
                 return bestp;
             };
@@ -393,17 +414,18 @@ define(['./features'], function(Features) {
         };
     };
 
-    var make_recog = function(hmmdef) {
+    var make_recog = function(hmmdef, config) {
         var saw_codebook = false, saw_v = false, saw_nontied = false;
         extract_models(hmmdef, {
             model: function(name, globals, def) {
-                if (globals.ParmKind.extra.indexOf('V') >= 0) saw_v = true;
+                var i, j;
+                if (globals.ParmKind.extra.indexOf('V') >= 0) { saw_v = true; }
                 // for all states, are all the stream models tied?
-                for (var i=2; i < def.NumStates; i++) {
+                for (i=2; i < def.NumStates; i++) {
                     var state = def.States[i];
-                    for (var j=0; j < state.NumMixes.length; j++) {
+                    for (j=0; j < state.NumMixes.length; j++) {
                         var stream = state.Streams[j];
-                        if (!('TMix' in stream)) saw_nontied = true;
+                        if (!('TMix' in stream)) { saw_nontied = true; }
                     }
                 }
                 return null;
@@ -413,8 +435,10 @@ define(['./features'], function(Features) {
         });
         // ok, figure out what type of HMM definition this is.
         if (saw_codebook && saw_v) {
-            return make_discrete_recog(hmmdef);
+            config = omerge(DISCRETE_DEFAULTS, config || {});
+            return make_discrete_recog(hmmdef, config);
         } else if ((!saw_v) && (!saw_nontied)) {
+            config = omerge(TIED_MIX_DEFAULTS, config || {});
             return make_tied_mix_recog(hmmdef);
         } else {
             // XXX handle other types of HMM
