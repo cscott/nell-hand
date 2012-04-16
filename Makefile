@@ -12,16 +12,16 @@ TOPOLOGY=
 # total # of mixtures (for mix, tiedmix types)
 MIX=5
 # total # of allographs to train
-ALLOGRAPHS=4
+ALLOGRAPHS=2
 # number of streams
 # (used for discrete and tiedmix HMMs)
 NSTREAMS=3
 STREAM1_SIZE=256
 STREAM2_SIZE=64
-STREAM3_SIZE=64
+STREAM3_SIZE=16
 # override final step here if final is overtrained
 #JSONSTEP=$(FINALSTEP)
-JSONSTEP=11
+JSONSTEP=13
 
 #SYMBOLS=$(UPPER_LETTERS) $(LOWER_LETTERS) $(DIGITS)
 SYMBOLS=$(UPPER_LETTERS)
