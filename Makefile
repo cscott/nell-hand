@@ -5,9 +5,9 @@ DIGITS=0 1 2 3 4 5 6 7 8 9
 # set aside 20% of the training data for evaluation.
 TRAINAMT=5
 # HMM type: discrete, mix, tiedmix
-HMMTYPE=discrete
+HMMTYPE=tiedmix
 # HMM topology
-NSTATES=16
+NSTATES=8
 TOPOLOGY=
 # total # of mixtures (for mix, tiedmix types)
 MIX=5
@@ -17,11 +17,11 @@ ALLOGRAPHS=4
 # (used for discrete and tiedmix HMMs)
 NSTREAMS=3
 STREAM1_SIZE=256
-STREAM2_SIZE=128
-STREAM3_SIZE=128
+STREAM2_SIZE=64
+STREAM3_SIZE=64
 # override final step here if final is overtrained
 #JSONSTEP=$(FINALSTEP)
-JSONSTEP=9
+JSONSTEP=11
 
 #SYMBOLS=$(UPPER_LETTERS) $(LOWER_LETTERS) $(DIGITS)
 SYMBOLS=$(UPPER_LETTERS)
