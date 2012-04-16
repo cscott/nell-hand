@@ -15,6 +15,7 @@ requirejs(['commander', 'fs', 'q', './features', './hmm', './version'], function
                 'File with additional command-line arguments',
                 null)
         .option('-T, --time', "Don't emit output, just time the recognition.")
+        .option('-c, --mix_thresh <number>', "Pruning threshold for tied mixtures", Number, 0)
         .parse(process.argv);
 
     if (program.script) {
@@ -35,7 +36,9 @@ requirejs(['commander', 'fs', 'q', './features', './hmm', './version'], function
     }
 
     var hmmdef = JSON.parse(fs.readFileSync(program.args.shift(), 'utf-8'));
-    var recognizer = HMM.make_recog(hmmdef);
+    var options = {};
+    if (program.mix_thresh) { options.mix_thresh = program.mix_thresh; }
+    var recognizer = HMM.make_recog(hmmdef, options);
 
     var readHTK = function(filename) {
         var buffer = fs.readFileSync(filename);

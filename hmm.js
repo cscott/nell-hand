@@ -224,7 +224,11 @@ define(['./features'], function(Features) {
     };
 
     var TIED_MIX_DEFAULTS = {
-        // default options go here.
+        // Only those mixture component probabilities which fall within the
+        // given amount of the maximum mixture component probability are used
+        // in calculating the state output probabilities.  Equivalent to the
+        // '-c' option to the HTK tools HERest, HVite, etc.
+        mix_thresh: 10.0
     };
     var make_tied_mix_recog = function(hmmdef, options) {
         var codebooks = [];
@@ -313,7 +317,7 @@ define(['./features'], function(Features) {
                 }
 
                 return input.map(function(v, i) { // "for each stream..."
-                    return codebooks[i].map(function(mix) {
+                    var comp_prob = codebooks[i].map(function(mix) {
                         // N(o;u,E)=e^((-1/2)*(o-u)'*E^-1*(o-u))/(GConst)^(-1/2)
                         // [HTK book 7.2] -- logarithmic math
                         console.assert(v.length === mix.Mean.length);
@@ -324,6 +328,23 @@ define(['./features'], function(Features) {
                         }
                         return (acc + mix.GConst) / -2;
                     });
+                    // pruning: only the most probable mixture components will
+                    // be used.
+                    var best = 0, bestp = comp_prob[0], j;
+                    for (j=1; j<comp_prob.length; j++) {
+                        if (comp_prob[j] > bestp) {
+                            bestp = comp_prob[j];
+                            best = j;
+                        }
+                    }
+                    var pruned = [ [best, bestp] ];
+                    bestp -= options.mix_thresh;
+                    for (j=0; j<comp_prob.length; j++) {
+                        if (j !== best && comp_prob[j] > bestp) {
+                            pruned.push( [j, comp_prob[j]] );
+                        }
+                    }
+                    return pruned;
                 });
             });
         };
@@ -343,23 +364,30 @@ define(['./features'], function(Features) {
                 // XXX we're ignoring stream weights
                 for (j = 0; j<o_t.length; j++) {
                     // find maximum weighted gaussian
-                    var best = 0, bestg= o_t[j][0] + state.output[j].weights[0];
-                    for (i=0; i<state.output[j].weights.length; i++) {
-                        g = o_t[j][i] + state.output[j].weights[i];
+                    var best = 0, c, w;
+                    c = o_t[j][0][0]; w = o_t[j][0][1];
+                    var bestg = w + state.output[j].weights[c];
+                    for (i=1; i<o_t[j].length; i++) {
+                        c = o_t[j][i][0]; w = o_t[j][i][1];
+                        g = w + state.output[j].weights[c];
                         if (g > bestg) { bestg = g; best = i; }
                     }
+                    // hm: no way we could possibly emit this output.
+                    if (bestg===-Infinity) { return bestg; }
                     // sum all the gaussians, using the identity:
                     // log(a + c) = log(a) + log(1 + c/a)
                     //            = log(a) + log(1 + exp(log(c) - log(a)))
                     b_j += bestg;
                     var partial = 1;
-                    for (i=0; i<state.output[j].weights.length; i++) {
-                        if (i === best) { continue; }
-                        g = o_t[j][i] + state.output[j].weights[i];
+                    for (i=0; i<o_t[j].length; i++) {
+                        if (i===best) { continue; }
+                        c = o_t[j][i][0]; w = o_t[j][i][1];
+                        g = w + state.output[j].weights[c];
                         partial += Math.exp(g - bestg);
                     }
                     b_j += Math.log(partial);
                 }
+                console.assert(b_j === b_j, "Output prob NaN");
 
                 // maximized prob of reaching this state
                 console.assert(state.pred.length);
@@ -439,7 +467,7 @@ define(['./features'], function(Features) {
             return make_discrete_recog(hmmdef, config);
         } else if ((!saw_v) && (!saw_nontied)) {
             config = omerge(TIED_MIX_DEFAULTS, config || {});
-            return make_tied_mix_recog(hmmdef);
+            return make_tied_mix_recog(hmmdef, config);
         } else {
             // XXX handle other types of HMM
             console.assert(false);
