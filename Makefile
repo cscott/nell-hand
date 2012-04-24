@@ -4,24 +4,26 @@ DIGITS=0 1 2 3 4 5 6 7 8 9
 
 # set aside 20% of the training data for evaluation.
 TRAINAMT=5
+# rotate characters for more robust training
+ROTATEAMT=-r 3
 # HMM type: discrete, mix, tiedmix
 HMMTYPE=tiedmix
 # HMM topology
 NSTATES=8
 TOPOLOGY=
 # total # of mixtures (for mix, tiedmix types)
-MIX=9
+MIX=5
 # total # of allographs to train
-ALLOGRAPHS=4
+ALLOGRAPHS=2
 # number of streams
 # (used for discrete and tiedmix HMMs)
 NSTREAMS=3
-STREAM1_SIZE=512
+STREAM1_SIZE=256
 STREAM2_SIZE=128
-STREAM3_SIZE=64
+STREAM3_SIZE=128
 # override final step here if final is overtrained
-#JSONSTEP=$(FINALSTEP)
-JSONSTEP=11
+JSONSTEP=$(FINALSTEP)
+#JSONSTEP=11
 
 #SYMBOLS=$(UPPER_LETTERS) $(LOWER_LETTERS) $(DIGITS)
 SYMBOLS=$(UPPER_LETTERS)
@@ -39,7 +41,7 @@ html/%.html parm/%.mlf parm/%.scr parm/%-qual.scr: json/%.json unipen2htk.js
 	@mkdir -p html parm/$*
 	./unipen2htk.js -T $(TRAINAMT) -H html/$*.html -A $(ALLOGRAPHS) \
 		-M parm/$*.mlf -P parm/$* -S parm/$*.scr -Q parm/$*-qual.scr \
-		$<
+		 $(ROTATEAMT) $<
 
 # helper: dump parameter file
 parm/%.out: parm/%.htk htk-config $(if $(filter discrete,$(HMMTYPE)),codebook)
@@ -51,7 +53,7 @@ parmVQ:
 	./hmm2json.js -o codebook.json -c codebook
 	for l in $(SYMBOLS); do \
 	  mkdir -p parmVQ/$$l ; \
-	  ./unipen2htk.js -d -c codebook.json -T $(TRAINAMT) -A $(ALLOGRAPHS) -P parmVQ/$$l json/$$l.json ; \
+	  ./unipen2htk.js -d -c codebook.json -T $(TRAINAMT) $(ROTATEAMT) -A $(ALLOGRAPHS) -P parmVQ/$$l json/$$l.json ; \
 	done
 
 # vector quantization whoo

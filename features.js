@@ -90,6 +90,18 @@ define(['./point.js'], function(Point) {
         });
     };
 
+    var rotate = function(data_set, theta /* radians */) {
+        var ct = Math.cos(theta), st = Math.sin(theta);
+        var rot = function(pt) {
+            var x = pt.x - 0.5, y = pt.y - 0.5;
+            var nx = x*ct - y*st, ny = x*st + y*ct;
+            return { x: nx+0.5, y: ny+0.5 };
+        };
+        data_set.strokes = data_set.strokes.map(function(stroke) {
+            return stroke.map(rot);
+        });
+    };
+
     var smooth = function(data_set) {
         data_set.strokes = data_set.strokes.map(function(stroke) {
             var nstroke = [], i, j;
@@ -434,6 +446,7 @@ define(['./point.js'], function(Point) {
         RESAMPLE_INTERVAL: RESAMPLE_INTERVAL,
         // stroke processing functions
         normalize: normalize,
+        rotate: rotate,
         smooth: smooth,
         singleStroke: singleStroke,
         equidist: equidist,

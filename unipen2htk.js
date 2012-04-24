@@ -3,13 +3,16 @@
 // uses typed arrays, which landed in node 0.5.5.
 var requirejs = require('requirejs');
 
-requirejs(['commander', 'fs', 'progress', './point', './features', './version'],
-function(program, fs, ProgressBar, Point, Features, version) {
+requirejs(['commander', 'fs', 'progress', './alea', './point', './features', './version'],
+function(program, fs, ProgressBar, Alea, Point, Features, version) {
 
 var CANVAS_RESOLUTION = 100;
 var RETINA_FACTOR = 1;
 var DOT_SIZE = 1/60;
 var RESAMPLE_HERTZ = 100; // sample rate written into parameter file
+var MAX_ROTATE_AMT = 10 * Math.PI / 180; // 10 degree rotation
+
+var random = new Alea.Random('unipen2htk seed');
 
 program
     .version(version)
@@ -24,6 +27,7 @@ program
     .option('-S, --script <filename>', 'list of parameter files for training', null)
     .option('-Q, --qualscript <filename>', 'list of parameter files *not* used for training', null)
     .option('-A, --allographs <number>', 'Randomly spread the input into <number> allograph classes', Number, 1)
+    .option('-r, --rotate <number>', 'Generate <number> randomly-rotated variants', Number, 0)
     .option('-d, --deltas', 'Include delta and acceleration features')
     .option('-c, --codebook <filename>', 'Include VQ data using specified JSON codebook',
             null)
@@ -132,48 +136,55 @@ var draw_letter = function(data_set, caption) {
 };
 
 // okay, draw the letters!
+var nvariants = 1 + (program.rotate);
 var avg_len = 0, avg_cnt = 0, min_len, max_len;
 var bar = new ProgressBar('Writing features: [:bar] :percent :etas',
-                          { total: data.set.length, width: 30 });
+                          { total: data.set.length*nvariants, width: 30 });
 var featmin, featmax;
-for (var i=0, n=0; i<data.set.length; i++, bar.tick()) {
-    var label = data.set[i].name;
-    Features.normalize(data.set[i]);
-    draw_letter(data.set[i], "Unipen "+i);
+for (var i=0, n=0; i<data.set.length*nvariants; i++, bar.tick()) {
+    var data_set = data.set[Math.floor(i/nvariants)];
+    var label = data_set.name;
+    data_set = JSON.parse(JSON.stringify(data_set)); // clone
+    Features.normalize(data_set);
+    if (nvariants > 1 && (i%nvariants) !== 0) {
+        Features.rotate(data_set, ((random()*2)-1)*MAX_ROTATE_AMT);
+        //Features.rotate(data_set, MAX_ROTATE_AMT*(i%nvariants)/nvariants);
+    }
+    draw_letter(data_set, "Unipen "+Math.floor(i/nvariants)+'-'+(i%nvariants));
 
-    Features.smooth(data.set[i]);
-    Features.singleStroke(data.set[i]);
-    //draw_letter(data.set[i], "Smoothed "+i);
+    Features.smooth(data_set);
+    Features.singleStroke(data_set);
+    //draw_letter(data_set, "Smoothed "+Math.floor(i/nvariants)+'-'+(i%nvariants));
 
-    Features.equidist(data.set[i]);
-    draw_letter(data.set[i], "Resampled "+i);
-    if (data.set[i].strokes[0].length===0) continue;
+    Features.equidist(data_set);
+    draw_letter(data_set, "Resampled "+Math.floor(i/nvariants)+'-'+(i%nvariants));
+    if (data_set.strokes[0].length===0) continue;
 
-    avg_len += data.set[i].strokes[0].length;
+    avg_len += data_set.strokes[0].length;
     avg_cnt += 1;
 
-    Features.features(data.set[i]);
-    if (data.set[i].features.length===0) continue;
+    Features.features(data_set);
+    if (data_set.features.length===0) continue;
 
     if (program.deltas || vq_features) {
-        Features.delta_and_accel(data.set[i]);
+        Features.delta_and_accel(data_set);
     }
     if (vq_features) {
-        vq_features(data.set[i]);
+        vq_features(data_set);
     }
     if (program.deltas) {
-        Features.merge_delta_and_accel(data.set[i]);
+        Features.merge_delta_and_accel(data_set);
     }
 
     if (i===0) {
-        min_len = data.set[i].features.length;
-        max_len = data.set[i].features.length;
-        featmax = data.set[i].features[0].slice(0);
-        featmin = data.set[i].features[0].slice(0);
+        min_len = data_set.features.length;
+        max_len = data_set.features.length;
+        featmax = data_set.features[0].slice(0);
+        featmin = data_set.features[0].slice(0);
     }
-    min_len = Math.min(min_len, data.set[i].features.length);
-    max_len = Math.max(max_len, data.set[i].features.length);
-    data.set[i].features.forEach(function(featvect) {
+    min_len = Math.min(min_len, data_set.features.length);
+    max_len = Math.max(max_len, data_set.features.length);
+    data_set.features.forEach(function(featvect) {
         featvect.forEach(function(f, j) {
             if (f > featmax[j]) { featmax[j] = f; }
             if (f < featmin[j]) { featmin[j] = f; }
@@ -183,9 +194,9 @@ for (var i=0, n=0; i<data.set.length; i++, bar.tick()) {
     if (!program.parmdir) continue;
 
     // Make 12-byte header
-    var nfeat = data.set[i].features.length;
+    var nfeat = data_set.features.length;
     if (nfeat === 0) continue; // hm, strange.
-    var featvlen = data.set[i].features[0].length;
+    var featvlen = data_set.features[0].length;
     var sampSize = featvlen * 4;
     var parmKind = 9 /* USER: user defined sample kind */;
     if (program.deltas) {
@@ -193,7 +204,7 @@ for (var i=0, n=0; i<data.set.length; i++, bar.tick()) {
     }
     if (vq_features) {
         parmKind = 10; /* DISCRETE */
-        featvlen = data.set[i].vq[0].length;
+        featvlen = data_set.vq[0].length;
         sampSize = featvlen * 2;
     }
 
@@ -211,7 +222,7 @@ for (var i=0, n=0; i<data.set.length; i++, bar.tick()) {
     var fbuf = new ArrayBuffer(sampSize * nfeat), featv;
     if (vq_features) {
         featv = new Uint16Array(fbuf);
-        data.set[i].vq.forEach(function(fv, j) {
+        data_set.vq.forEach(function(fv, j) {
             var base = j * featvlen;
             fv.forEach(function(v, k) {
                 featv[base+k] = (v+1); // HTK uses 1-based VQ values.
@@ -219,14 +230,17 @@ for (var i=0, n=0; i<data.set.length; i++, bar.tick()) {
         });
     } else {
         featv = new Float32Array(fbuf);
-        data.set[i].features.forEach(function (fv, j) {
+        data_set.features.forEach(function (fv, j) {
             featv.set(fv, j*featvlen);
         });
     }
 
     // convert to node-native buffer type and write file
-    var filename = "" + i;
+    var filename = "" + Math.floor(i/nvariants);
     while (filename.length < 4) { filename = "0" + filename; }
+    if (nvariants > 1) {
+        filename += '-' + (i % nvariants);
+    }
     var parm_fd = fs.openSync(program.parmdir+"/"+filename+".htk", 'w');
     var w = function(arraybuf) {
         var b = new Buffer(new Uint8Array(arraybuf));
@@ -241,7 +255,7 @@ for (var i=0, n=0; i<data.set.length; i++, bar.tick()) {
     if (program.allographs===1) {
         m(label);
     } else {
-        var a = Math.floor(i * program.allographs / data.set.length);
+        var a = Math.floor((i*program.allographs)/(data.set.length*nvariants));
         ma(label+(1+a)+"\t"+label);
         for (var j=0; j<program.allographs; j++) {
             if (j>0) m('///');
@@ -251,7 +265,7 @@ for (var i=0, n=0; i<data.set.length; i++, bar.tick()) {
     m('.');
     ma('.');
 
-    if (program.train === 0 || (n % program.train !== 0)) {
+    if (program.train === 0 || (Math.floor(n/nvariants) % program.train !== 0)){
         s(program.parmdir+'/'+filename+'.htk');
     } else {
         q(program.parmdir+'/'+filename+'.htk');
